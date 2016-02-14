@@ -32,7 +32,7 @@ typedef int8_t sh_err;
 
 struct cmd_entry {
 	char *name;
-	char* (*sh_cmd)(int,char*);
+	char* (*sh_cmd)(int,char*[]);
 	char *help;
 };
 

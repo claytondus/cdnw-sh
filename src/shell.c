@@ -42,9 +42,9 @@ struct cmd_entry sh_cmds[] = {
 // need to make case insensitive
 // need quote handling
 char* run_cmd(char *cmdstr) {
-	char *cmd_argc[SH_MAX_ARGS];
+	char *cmd_argv[SH_MAX_ARGS];
 	char *cmd_tok=NULL;
-	int cmd_argv = 0;
+	int cmd_argc = 0;
 	char *result=NULL;
 	int last_stop = 0;
 
@@ -55,11 +55,11 @@ char* run_cmd(char *cmdstr) {
 			// quote handling
 		} else if (c == ' ' || c == '\n' || c == '\r'){
 			if(cmd_tok) {
-				cmd_argc[cmd_argv] = malloc(sizeof(char)*(i-last_stop));
-				strncpy(cmd_argc[cmd_argv],cmdstr+last_stop+1,(i-last_stop-1));
-				(cmd_argc[cmd_argv])[i-last_stop] = '\0';
+				cmd_argv[cmd_argc] = malloc(sizeof(char)*(i-last_stop));
+				strncpy(cmd_argv[cmd_argc],cmdstr+last_stop+1,(i-last_stop-1));
+				(cmd_argv[cmd_argc])[i-last_stop] = '\0';
 
-				cmd_argv++;
+				cmd_argc++;
 			} else {
 				cmd_tok = malloc(sizeof(char)*(i+1));
 				strncpy(cmd_tok,cmdstr,i);
@@ -77,7 +77,7 @@ char* run_cmd(char *cmdstr) {
 		int i;
 		for(i=0; i<SH_CMD_NUM; i++) {
 			if(!strcmp(cmd_tok,sh_cmds[i].name)) {
-				result = sh_cmds[i].sh_cmd(cmd_argv, cmd_argc);
+				result = sh_cmds[i].sh_cmd(cmd_argc, cmd_argv);
 				break;
 			}
 		}
@@ -94,119 +94,119 @@ char* run_cmd(char *cmdstr) {
 	return result;
 }
 
-char* sh_exit(int cmd_argv, char* cmd_argc) {
+char* sh_exit(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_open(int cmd_argv, char* cmd_argc) {
+char* sh_open(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_close(int cmd_argv, char* cmd_argc) {
+char* sh_close(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_read(int cmd_argv, char* cmd_argc) {
+char* sh_read(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_write(int cmd_argv, char* cmd_argc) {
+char* sh_write(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_seek(int cmd_argv, char* cmd_argc) {
+char* sh_seek(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_mkdir(int cmd_argv, char* cmd_argc) {
+char* sh_mkdir(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_rmdir(int cmd_argv, char* cmd_argc) {
+char* sh_rmdir(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_rm(int cmd_argv, char* cmd_argc) {
+char* sh_rm(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_cat(int cmd_argv, char* cmd_argc) {
+char* sh_cat(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_cd(int cmd_argv, char* cmd_argc) {
+char* sh_cd(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_ls(int cmd_argv, char* cmd_argc) {
+char* sh_ls(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_tree(int cmd_argv, char* cmd_argc) {
+char* sh_tree(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_import(int cmd_argv, char* cmd_argc) {
+char* sh_import(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_export(int cmd_argv, char* cmd_argc) {
+char* sh_export(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_connect(int cmd_argv, char* cmd_argc) {
+char* sh_connect(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 
 	return result;
 }
 
-char* sh_help(int cmd_argv, char* cmd_argc) {
+char* sh_help(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 
 

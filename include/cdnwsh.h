@@ -64,23 +64,23 @@ char* recv_results();
 char* prompt();
 char* run_cmd(char*);
 
-char* sh_exit(int, char*);
-char* sh_open(int, char*);
-char* sh_read(int, char*);
-char* sh_write(int, char*);
-char* sh_seek(int, char*);
-char* sh_close(int, char*);
-char* sh_mkdir(int, char*);
-char* sh_rmdir(int, char*);
-char* sh_cd(int, char*);
-char* sh_ls(int, char*);
-char* sh_cat(int, char*);
-char* sh_tree(int, char*);
-char* sh_import(int, char*);
-char* sh_export(int, char*);
-char* sh_help(int, char*);
-char* sh_connect(int, char*);
-char* sh_rm(int, char*);
+char* sh_exit(int, char*[]);
+char* sh_open(int, char*[]);
+char* sh_read(int, char*[]);
+char* sh_write(int, char*[]);
+char* sh_seek(int, char*[]);
+char* sh_close(int, char*[]);
+char* sh_mkdir(int, char*[]);
+char* sh_rmdir(int, char*[]);
+char* sh_cd(int, char*[]);
+char* sh_ls(int, char*[]);
+char* sh_cat(int, char*[]);
+char* sh_tree(int, char*[]);
+char* sh_import(int, char*[]);
+char* sh_export(int, char*[]);
+char* sh_help(int, char*[]);
+char* sh_connect(int, char*[]);
+char* sh_rm(int, char*[]);
 
 
 
