@@ -21,6 +21,8 @@
 #define ITYPE_FILE 		0
 #define ITYPE_FOLDER	1
 
+#define MAX_FD			1024
+
 struct block {
 	uint8_t byte[BLOCK_SIZE];
 };
@@ -65,5 +67,32 @@ struct dir_entry {
 #define BM_FREE		0
 #define BM_USED		1
 
+#define VFS_BLANK	0
+#define VFS_GOOD	1
+#define VFS_ERR		-1
+
+// holds values related to a virtual file system file
+struct vfs {
+
+	int8_t state;
+	struct superblock *superblk;
+	uint8_t *free_inodes;
+	uint8_t *free_blocks;
+
+	// ptr to memory mapped vfs file
+	GMappedFile* fs;
+
+};
+
+#define FD_FREE 	0
+#define FD_READ		1
+#define FD_WRITE	2
+
+struct fd_entry {
+	uint8_t state;
+	int16_t fd;
+	iptr fnode;
+	uint32_t cursor;
+};
 
 #endif /* INCLUDE_FS_H_ */
