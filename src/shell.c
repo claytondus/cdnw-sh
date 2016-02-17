@@ -96,119 +96,132 @@ char* run_cmd(char *cmdstr) {
 
 char* sh_exit(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 	return result;
 }
 
 char* sh_open(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 	return result;
 }
 
 char* sh_close(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 	return result;
 }
 
 char* sh_read(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 	return result;
 }
 
 char* sh_write(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_seek(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_mkdir(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_rmdir(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_rm(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_cat(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_cd(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_ls(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_tree(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_import(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_export(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_connect(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }
 
 char* sh_help(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-
+	(void)(cmd_argc);
+	(void)(cmd_argv);
 
 	return result;
 }

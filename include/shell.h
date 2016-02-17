@@ -31,9 +31,9 @@ typedef int8_t sh_err;
 
 
 struct cmd_entry {
-	char *name;
+	const char *name;
 	char* (*sh_cmd)(int,char*[]);
-	char *help;
+	const char *help;
 };
 
 #endif /* INCLUDE_SHELL_H_ */

@@ -26,7 +26,7 @@
 
 
 // function prototypes here
-void mkfs();
+void mkfs(void);
 
 // fs.c
 struct block* blk_read(uint32_t);
@@ -42,26 +42,26 @@ sh_err cnmkdir(char*);
 sh_err cnrmdir(char*);
 sh_err cnrm(char*);
 sh_err cncd(char*);
-char* cnls();
+char* cnls(void);
 char* cncat(char*);
-char* cntree();
+char* cntree(void);
 sh_err cnimport(char*,char*);
 sh_err cnexport(char*,char*);
 
 
 //server.c
-in_port_t start_listening();
-char* recv_cmd();
+in_port_t start_listening(void);
+char* recv_cmd(void);
 sh_err send_results(char*);
-sh_err run();					// loop to check sockets sets (fd_set)
+sh_err run(void);					// loop to check sockets sets (fd_set)
 
 //client.c
 int cnconnect(struct sockaddr_in);
 sh_err send_cmd(char*);
-char* recv_results();
+char* recv_results(void);
 
 // shell.c
-char* prompt();
+char* prompt(void);
 char* run_cmd(char*);
 
 char* sh_exit(int, char*[]);
