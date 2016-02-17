@@ -22,11 +22,13 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "blockdev.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_ShouldPass(void);
+extern void test_BlockdevInit(void);
 
 
 //=======Test Reset Option=====
@@ -42,7 +44,8 @@ void resetTest(void)
 int main(void)
 {
   UnityBegin("test/test_cdnwsh.c");
-  RUN_TEST(test_ShouldPass, 11);
+  RUN_TEST(test_ShouldPass, 12);
+  RUN_TEST(test_BlockdevInit, 17);
 
   return (UnityEnd());
 }

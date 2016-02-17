@@ -80,7 +80,7 @@ struct vfs {
 	uint8_t *free_blocks;
 
 	// ptr to memory mapped vfs file
-	GMappedFile* fs;
+	char* fs;
 
 };
 

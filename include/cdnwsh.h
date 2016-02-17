@@ -28,11 +28,6 @@
 // function prototypes here
 void mkfs(void);
 
-// fs.c
-struct block* blk_read(uint32_t);
-sh_err blk_write(uint32_t,struct block*);
-sh_err chk_vfs(struct vfs*);
-
 int16_t cnopen(char *, uint8_t);
 char* cnread(int16_t, uint32_t);
 sh_err cnwrite(int16_t, char*);

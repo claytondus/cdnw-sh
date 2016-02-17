@@ -9,7 +9,7 @@ MKDIR = mkdir -p
 UNITY_ROOT=contrib/unity
 C_COMPILER=gcc
 
-CFLAGS=-std=c99
+CFLAGS=-std=c11
 CFLAGS += -Wall
 CFLAGS += -Wextra
 CFLAGS += -Werror 
@@ -37,7 +37,7 @@ all: test
 
 test:
 	ruby $(UNITY_ROOT)/auto/generate_test_runner.rb test/test_cdnwsh.c  test/test_runners/test_cdnwsh_runner.c
-	$(C_COMPILER) $(CFLAGS) $(TEST_INC_DIRS) $(TEST_SYMBOLS) $(TEST_LIBS) $(TEST_SRC_FILES) -o test/$(TEST_TARGET)
+	$(C_COMPILER) -g -O0 $(CFLAGS) $(TEST_INC_DIRS) $(TEST_SYMBOLS) $(TEST_LIBS) $(TEST_SRC_FILES) -o test/$(TEST_TARGET)
 	./test/$(TEST_TARGET)
 
 clean:
