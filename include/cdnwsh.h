@@ -14,8 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <glib/gstdio.h>
-#include <glib.h>
 
 // local includes here
 

@@ -8,7 +8,9 @@
 #ifndef INCLUDE_FS_H_
 #define INCLUDE_FS_H_
 
-#define BLOCK_SIZE			4096
+#include <stdint.h>
+#include "block.h"
+
 #define BLOCKS_PER_INODE	4
 #define INODE_SIZE			64
 #define INODE_PADDING		7
@@ -23,9 +25,7 @@
 
 #define MAX_FD			1024
 
-struct block {
-	uint8_t byte[BLOCK_SIZE];
-};
+
 
 typedef uint32_t iptr; // inode pointer
 

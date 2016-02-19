@@ -8,12 +8,13 @@
 #ifndef INCLUDE_BLOCKDEV_H_
 #define INCLUDE_BLOCKDEV_H_
 
-#include "fs.h"
 
-struct block* blk_read(uint32_t);
-int8_t blk_write(uint32_t,struct block*);
-int8_t chk_vfs(struct vfs*);
+#include <stdint.h>
+#include "block.h"
 
-int test_blockdev(void);
+int8_t blockdev_attach(void);
+int8_t blockdev_detach(void);
+int8_t blk_read(const uint32_t, block*);
+int8_t blk_write(const uint32_t, const block*);
 
 #endif /* INCLUDE_BLOCKDEV_H_ */
