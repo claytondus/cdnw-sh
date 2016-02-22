@@ -9,33 +9,49 @@
 
 const char *str_table[] = {
 		"\ncdnw-shell> \0",
-		"ERROR: command not found\0"
+		"Available commands: cat cd close connect exit export help import ls mkdir open read rm rmdir seek tree write\0",
+		"Exiting...\0"
+};
+
+const char *err_strings[] = {
+		"SUCCESS\0",
+		"ERROR: unknown problem\0",
+		"ERROR: file or folder not found\0",
+		"ERROR: end of file\0",
+		"ERROR: \0",
+		"ERROR: insufficient diskspace to complete this operation\0",
+		"ERROR: insufficient inodes to complete this operation\0",
+		"ERROR: invalid virtual file system, unable to mount\0",
+		"ERROR: invalid operation, no virtual file system has been mounted\0",
+		"ERROR: invalid parameters, unable to run this command\0",
+		"ERROR: command not found\0",
+		"ERROR: socket - unable to run select()\0"
 };
 
 struct cmd_entry sh_cmds[] = {
+		{"cat\0",sh_cat,"Usage: cat <filename>\0"},
+		{"cd\0",sh_cd,"Usage: cd <dir_name>\0"},
+		{"close\0",sh_close,"Usage: close <fd>\n"
+				"fd = file descriptor\0"},
+		{"connect\0",sh_connect,"Usage: connect <server_ip> <server_port>\0"},
 		{"exit\0",sh_exit,"Usage: exit\nIf used at a remote server prompt, "
 				"EXIT will disconnect the client connection.\nIf used at a local prompt, "
 				"EXIT will close the shell and stop the client or server\0"},
+		{"export\0",sh_export,"Usage: export <internal_filename> <external_filename>\0"},
+		{"help\0",sh_help,"Usage: 'help [<cmd>]' or '<cmd> --help'\0"},
+		{"import\0",sh_import,"Usage: import <external_filename> <internal_filename>\0"},
+		{"ls\0",sh_ls,"Usage: ls\0"},
+		{"mkdir\0",sh_mkdir,"Usage: mkdir <dir_name>\0"},
 		{"open\0",sh_open,"Usage: open <filename> <R/W>\n"
 				"OPEN initializes access to a file for reading or writing.\n"
 				"In the second parameter, 1 = read and 2 = write\0"},
-		{"close\0",sh_close,"Usage: close <fd>\n"
-				"fd = file descriptor\0"},
 		{"read\0",sh_read,"Usage: read <fd> <num_of_bytes>\0"},
-		{"write\0",sh_write,"Usage: write <fd> <string>\0"},
+		{"rm\0",sh_rm,"Usage: rm <filename>\0"},
+		{"rmdir\0",sh_rmdir,"Usage: rmdir <dir name>\0"},
 		{"seek\0",sh_seek,"Usage: seek <fd> <byte_offset>\n"
 				"A negative byte offset will move back instead of forward in the file\0"},
-		{"mkdir\0",sh_mkdir,"Usage: mkdir <dir_name>\0"},
-		{"rmdir\0",sh_rmdir,"Usage: rmdir <dir name>\0"},
-		{"rm\0",sh_rm,"Usage: rm <filename>\0"},
-		{"cd\0",sh_cd,"Usage: cd <dir_name>\0"},
-		{"ls\0",sh_ls,"Usage: ls\0"},
 		{"tree\0",sh_tree,"Usage: tree\0"},
-		{"cat\0",sh_cat,"Usage: cat <filename>\0"},
-		{"import\0",sh_import,"Usage: import <external_filename> <internal_filename>\0"},
-		{"export\0",sh_export,"Usage: export <internal_filename> <external_filename>\0"},
-		{"connect\0",sh_connect,"Usage: connect <server_ip> <server_port>\0"},
-		{"help\0",sh_help,"Usage: help [<cmd>], <cmd> --help\0"}
+		{"write\0",sh_write,"Usage: write <fd> <string>\0"}
 };
 
 // incomplete function
@@ -63,7 +79,7 @@ char* run_cmd(char *cmdstr) {
 			} else {
 				cmd_tok = malloc(sizeof(char)*(i+1));
 				strncpy(cmd_tok,cmdstr,i);
-				cmd_tok[i+1] = '\0';
+				cmd_tok[i] = '\0';
 			}
 			last_stop = i;
 		}
@@ -73,7 +89,7 @@ char* run_cmd(char *cmdstr) {
 
 	}
 
-	if(cmd_tok) {
+	if(cmd_tok && strncmp(cmd_tok,"\n",1)) {
 		int i;
 		for(i=0; i<SH_CMD_NUM; i++) {
 			if(!strcmp(cmd_tok,sh_cmds[i].name)) {
@@ -82,13 +98,11 @@ char* run_cmd(char *cmdstr) {
 			}
 		}
 		if(i==SH_CMD_NUM) {
-			result = malloc(sizeof(char)*(strlen(str_table[STR_ERR_BADCMD])+strlen(str_table[STR_PROMPT])+1));
-			strcpy(result,str_table[STR_ERR_BADCMD]);
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_BADCMD))+1));
+			strcpy(result,err_str(SH_ERR_BADCMD));
 		}
-		strcat(result,str_table[STR_PROMPT]);
 	} else {
-		result = malloc(sizeof(char)*(strlen(str_table[STR_PROMPT])+1));
-		strcpy(result,str_table[STR_PROMPT]);
+		result = NULL;
 	}
 
 	return result;
@@ -98,6 +112,11 @@ char* sh_exit(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	(void)(cmd_argc);
 	(void)(cmd_argv);
+
+	shell_server.status = SVR_STATUS_EXIT;
+	result = malloc(sizeof(char)*strlen(str_table[STR_EXIT]));
+	strcpy(result, str_table[STR_EXIT]);
+
 	return result;
 }
 
@@ -220,8 +239,26 @@ char* sh_connect(int cmd_argc, char* cmd_argv[]) {
 
 char* sh_help(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-	(void)(cmd_argc);
 	(void)(cmd_argv);
+	if(cmd_argc) {
+		int i;
+		for(i=0; i<SH_CMD_NUM; i++) {
+			if(!strcmp(cmd_argv[0],sh_cmds[i].name)) {
+				result = malloc(sizeof(char)*(strlen(sh_cmds[i].help)));
+				strcpy(result, sh_cmds[i].help);
+				break;
+			}
+		}
+		if(!result) {
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_BADCMD))+1));
+			strcpy(result,err_str(SH_ERR_BADCMD));
+		}
+	} else {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_HELP].help)+strlen(str_table[STR_CMDS])+1));
+		strcpy(result, sh_cmds[SH_CMD_HELP].help);
+		strcpy(result, "\n");
+		strcpy(result, str_table[STR_CMDS]);
+	}
 
 	return result;
 }
