@@ -9,19 +9,27 @@
 #define INCLUDE_FS_H_
 
 #include <stdint.h>
+#include <stdbool.h>
+#include <time.h>
 #include "block.h"
+
+#define FS_MAGIC 0xCD5E
+#define FS_VALID 0x0001
+#define FS_ERROR 0x0002
 
 #define BLOCKS_PER_INODE	4
 #define INODE_SIZE			64
 #define INODE_PADDING		7
+#define INODE_COUNT			(BD_SIZE_BLOCKS / BLOCKS_PER_INODE)
 
-#define BLOCK_SUPER			0
-#define BLOCK_FREE_INODES	1
-#define BLOCK_FREE_BLOCKS	2
-#define BLOCK_INODE_TABLE	3
+#define BLOCKID_SUPER			0
+#define BLOCKID_BLOCK_BITMAP	1
+#define BLOCKID_INODE_BITMAP	2
+#define BLOCKID_INODE_TABLE		3
+
 
 #define ITYPE_FILE 		0
-#define ITYPE_FOLDER	1
+#define ITYPE_DIR		1
 
 #define MAX_FD			1024
 
@@ -29,7 +37,7 @@
 
 typedef uint32_t iptr; // inode pointer
 
-struct inode {
+typedef struct {
 	uint8_t type;
 	uint32_t size;
 
@@ -42,26 +50,17 @@ struct inode {
 	iptr data2;			// double indirect data block pointers
 
 	uint8_t padding[INODE_PADDING];
-};
+} inode;  //64 bytes, 64 inodes/block
 
-struct superblock {
-	uint32_t inode_count;
-	uint32_t block_count;
-
-	uint32_t free_inode_count;
-	uint32_t free_block_count;
-
-	uint32_t first_data_block;		// must also be the start of the directory listing for the filesystem root
-};
 
 #define DIR_ENTRY_UNUSED		0
 
-struct dir_entry {
+typedef struct {
 	iptr fnode;			// iptr to entry's file/folder; 0 = unused/end-of-list
 	uint16_t entry_len;	// length in bytes to the next dir_entry within the block or next block if equals block size
 	uint8_t name_len;	// length in bytes of the entry's file/folder name
 	char name[1];	// first character of the entry name
-};
+} dir_entry;
 
 // free block or inode bitmap values
 #define BM_FREE		0
@@ -74,13 +73,10 @@ struct dir_entry {
 // holds values related to a virtual file system file
 struct vfs {
 
-	int8_t state;
+	uint8_t state;
 	struct superblock *superblk;
 	uint8_t *free_inodes;
 	uint8_t *free_blocks;
-
-	// ptr to memory mapped vfs file
-	char* fs;
 
 };
 

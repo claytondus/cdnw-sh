@@ -8,6 +8,7 @@
 #ifndef INCLUDE_BLOCKDEV_H_
 #define INCLUDE_BLOCKDEV_H_
 
+#define BD_SIZE_BLOCKS 25600
 
 #include <stdint.h>
 #include "block.h"

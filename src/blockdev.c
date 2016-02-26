@@ -10,7 +10,6 @@
 #include <string.h>
 #include "blockdev.h"
 
-#define BD_SIZE_BLOCKS 25600
 #define BD_SIZE_BYTES ((BLOCK_SIZE)*(BD_SIZE_BLOCKS))
 
 #define EFSOPEN -1
