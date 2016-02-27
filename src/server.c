@@ -7,7 +7,7 @@
 
 #include <cdnwsh.h>
 #include <sys/select.h>
-#include </usr/include/netdb.h>
+#include <netdb.h>
 #include <errno.h>
 
 struct svrconf shell_server;

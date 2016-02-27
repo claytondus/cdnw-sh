@@ -2,7 +2,6 @@
 #include <unistd.h>
 #include <err.h>
 #include <sys/mman.h>
-#define __USE_ATFILE
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdint.h>

@@ -9,7 +9,7 @@ MKDIR = mkdir -p
 UNITY_ROOT=contrib/unity
 C_COMPILER=gcc
 
-CFLAGS=
+CFLAGS=-std=gnu11
 CFLAGS += -Wall
 CFLAGS += -Wextra
 CFLAGS += -Werror 

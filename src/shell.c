@@ -130,7 +130,7 @@ char* sh_mkfs(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	(void)(cmd_argc);
 	(void)(cmd_argv);
-	mkfs();
+	cnmkfs();
 	return result;
 }
 
