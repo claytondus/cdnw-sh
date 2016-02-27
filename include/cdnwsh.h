@@ -24,24 +24,6 @@
 #include "fs.h"
 
 
-// function prototypes here
-
-int16_t cnopen(char *, uint8_t);
-char* cnread(int16_t, uint32_t);
-sh_err cnwrite(int16_t, char*);
-sh_err cnseek(int16_t, int32_t);
-sh_err cnclose(int16_t);
-sh_err cnmkdir(char*);
-sh_err cnrmdir(char*);
-sh_err cnrm(char*);
-sh_err cncd(char*);
-char* cnls(void);
-char* cncat(char*);
-char* cntree(void);
-sh_err cnimport(char*,char*);
-sh_err cnexport(char*,char*);
-
-
 //server.c
 in_port_t start_listening(void);
 char* recv_cmd(void);

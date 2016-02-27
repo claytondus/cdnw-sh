@@ -40,7 +40,5 @@ TEST(blockdev, BlockdevCanReadWrite)
 	TEST_ASSERT_TRUE(rblk_32[45] == 0xFEEDBEEF);
 	free(test_read_blk);
 	TEST_ASSERT_TRUE(blockdev_detach() == 0);
-	printf("BlockdevCanReadWrite\n");
-	system("hexdump /tmp/fs.bin");
 }
 

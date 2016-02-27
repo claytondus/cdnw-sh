@@ -17,7 +17,7 @@ TEST_TEAR_DOWN(fs)
 
 TEST(fs, MkfsShouldComplete)
 {
-	TEST_ASSERT_TRUE(mkfs() == 0);
+	TEST_ASSERT_TRUE(cnmkfs() == 0);
 	system("hexdump /tmp/fs.bin");
 }
 

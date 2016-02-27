@@ -4,6 +4,21 @@
 
 #define SUPERBLOCK_PADDING (BLOCK_SIZE-1048)
 
+// free block or inode bitmap values
+#define BM_FREE		0
+#define BM_USED		1
+
+#define VFS_BLANK	0
+#define VFS_GOOD	1
+#define VFS_ERR		-1
+
+typedef struct {
+	iptr fnode;			// iptr to entry's file/folder; 0 = unused/end-of-list
+	uint16_t entry_len;	// length in bytes to the next dir_entry within the block or next block if equals block size
+	uint8_t name_len;	// length in bytes of the entry's file/folder name
+	uint8_t file_type;   // ITYPE_FILE / ITYPE_DIR
+	char name[1];	// first character of the entry name
+} dir_entry;
 
 typedef struct {
 	uint8_t boot_record[1024]; //0
@@ -20,6 +35,25 @@ typedef struct {
 } superblock;
 
 
+// holds values related to a virtual file system file
+typedef struct {
+
+	uint8_t state;
+	superblock *superblk;
+	uint8_t *free_inodes;
+	uint8_t *free_blocks;
+
+} vfs;
+
+
+
+//********FS state and cache********
+
+vfs fs;
+
+
+
+//*****************mkfs****************
 void superblock_init(void)
 {
 	superblock *sb = malloc(sizeof(block));
@@ -105,7 +139,7 @@ void write_root_dir(void)
 	free(root_dir_block);
 }
 
-uint8_t mkfs(void)
+int8_t cnmkfs(void)
 {
 	superblock_init();
 	block_bitmap_init();
@@ -113,3 +147,6 @@ uint8_t mkfs(void)
 	write_root_dir();
 	return 0;
 }
+//******** end mkfs *****************
+
+

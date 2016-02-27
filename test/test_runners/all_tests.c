@@ -2,7 +2,7 @@
 
 static void RunAllTests(void)
 {
-  //RUN_TEST_GROUP(blockdev);
+  RUN_TEST_GROUP(blockdev);
   RUN_TEST_GROUP(fs);
 }
 
