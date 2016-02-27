@@ -15,6 +15,7 @@
 
 int8_t blockdev_attach(void);
 int8_t blockdev_detach(void);
+int8_t blockdev_destroy(void);
 int8_t blk_read(const uint32_t, block*);
 int8_t blk_write(const uint32_t, const block*);
 

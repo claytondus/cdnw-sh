@@ -10,6 +10,7 @@
 uint32_t find_free_bit(block* blk)
 {
 	//TODO: Implement find free bit in bitmap
+	blk->byte[0] = 0;
 	return 0;
 }
 

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "block.h"
 
 uint32_t find_free_bit(block* blk);
 bool read_bitmap(block* blk, uint32_t index);

@@ -30,7 +30,7 @@ DEBUG_TARGET = debug_shell.o
 TEST_SRC_FILES=\
 $(UNITY_ROOT)/src/unity.c \
 $(UNITY_ROOT)/extras/fixture/src/unity_fixture.c \
-src/blockdev.c src/client.c src/server.c src/shell.c \
+src/*.c \
 test/*.c \
 test/test_runners/*.c
 DEBUG_SRC_FILES=\
@@ -48,7 +48,7 @@ debug:
 	$(C_COMPILER) -g -O0 $(CFLAGS) $(DEBUG_INC_DIRS) $(DEBUG_SRC_FILES) -o db/$(DEBUG_TARGET)
 	
 test:
-	$(C_COMPILER) -g -O0 $(CFLAGS) $(TEST_INC_DIRS) $(TEST_LDFLAGS) $(TEST_SRC_FILES) -o test/$(TEST_TARGET)
+	$(C_COMPILER) -g -O0 $(CFLAGS) $(TEST_INC_DIRS) $(TEST_LDFLAGS) $(TEST_SYMBOLS) $(TEST_SRC_FILES)  -o test/$(TEST_TARGET)
 	./test/$(TEST_TARGET)
 
 clean:

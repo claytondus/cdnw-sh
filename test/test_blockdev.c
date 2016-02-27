@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "blockdev.h"
 #include "unity.h"
 #include "unity_fixture.h"
@@ -6,10 +7,12 @@ TEST_GROUP(blockdev);
 
 TEST_SETUP(blockdev)
 {
+
 }
 
 TEST_TEAR_DOWN(blockdev)
 {
+	blockdev_destroy();
 }
 
 TEST(blockdev, BlockdevAttachDetachShouldComplete)
@@ -37,5 +40,7 @@ TEST(blockdev, BlockdevCanReadWrite)
 	TEST_ASSERT_TRUE(rblk_32[45] == 0xFEEDBEEF);
 	free(test_read_blk);
 	TEST_ASSERT_TRUE(blockdev_detach() == 0);
+	printf("BlockdevCanReadWrite\n");
+	system("hexdump /tmp/fs.bin");
 }
 

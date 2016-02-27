@@ -37,6 +37,10 @@ int8_t blockdev_attach(void)
 
 		attached = true;
 	}
+	else
+	{
+		err(1,"blockdev already attached");
+	}
 	return EXIT_SUCCESS;
 }
 
@@ -47,6 +51,19 @@ int8_t blockdev_detach(void)
 		close(fd);
 		attached = false;
 	}
+	else
+	{
+		err(1,"blockdev not attached");
+	}
+	return EXIT_SUCCESS;
+}
+
+int8_t blockdev_destroy(void)
+{
+	if(attached == true) {
+		err(1,"cannot destroy attached blockdev");
+	}
+	unlink("/tmp/fs.bin");
 	return EXIT_SUCCESS;
 }
 

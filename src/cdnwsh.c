@@ -7,6 +7,7 @@
 
 #include <cdnwsh.h>
 
+#ifndef UNITY_FIXTURES
 int main(int argc, char *argv[]) {
 
 	(void)argc;
@@ -20,3 +21,4 @@ int main(int argc, char *argv[]) {
 
 	return run_err;
 }
+#endif

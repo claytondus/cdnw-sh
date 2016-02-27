@@ -11,22 +11,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
+#include <string.h>
+#include <stdlib.h>
+#include "fsparams.h"
+#include "inode.h"
 #include "block.h"
-
-#define FS_MAGIC 0xCD5E
-#define FS_VALID 0x0001
-#define FS_ERROR 0x0002
-
-#define BLOCKS_PER_INODE	4
-#define INODE_SIZE			64
-#define INODE_PADDING		7
-#define INODE_COUNT			(BD_SIZE_BLOCKS / BLOCKS_PER_INODE)
-
-#define BLOCKID_SUPER			0
-#define BLOCKID_BLOCK_BITMAP	1
-#define BLOCKID_INODE_BITMAP	2
-#define BLOCKID_INODE_TABLE		3
-
+#include "blockdev.h"
 
 #define ITYPE_FILE 		0
 #define ITYPE_DIR		1
@@ -35,22 +25,6 @@
 
 
 
-typedef uint32_t iptr; // inode pointer
-
-typedef struct {
-	uint8_t type;
-	uint32_t size;
-
-	uint32_t created;
-	uint32_t modified;
-	uint32_t accessed;
-
-	iptr data0[8];		// direct data block pointers
-	iptr data1;			// single indirect data block pointers
-	iptr data2;			// double indirect data block pointers
-
-	uint8_t padding[INODE_PADDING];
-} inode;  //64 bytes, 64 inodes/block
 
 
 #define DIR_ENTRY_UNUSED		0
@@ -59,6 +33,7 @@ typedef struct {
 	iptr fnode;			// iptr to entry's file/folder; 0 = unused/end-of-list
 	uint16_t entry_len;	// length in bytes to the next dir_entry within the block or next block if equals block size
 	uint8_t name_len;	// length in bytes of the entry's file/folder name
+	uint8_t file_type;   // ITYPE_FILE / ITYPE_DIR
 	char name[1];	// first character of the entry name
 } dir_entry;
 
@@ -84,11 +59,14 @@ struct vfs {
 #define FD_READ		1
 #define FD_WRITE	2
 
-struct fd_entry {
+typedef struct {
 	uint8_t state;
 	int16_t fd;
 	iptr fnode;
 	uint32_t cursor;
-};
+} fd_entry;
+
+
+uint8_t mkfs(void);
 
 #endif /* INCLUDE_FS_H_ */

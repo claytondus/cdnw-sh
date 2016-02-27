@@ -1,6 +1,6 @@
 #include "fs.h"
-#include "blockdev.h"
 #include "bitmap.h"
+#include "inode.h"
 
 #define SUPERBLOCK_PADDING (BLOCK_SIZE-1048)
 
@@ -20,24 +20,16 @@ typedef struct {
 } superblock;
 
 
-void mkfs(void)
-{
-	superblock_init();
-	block_bitmap_init();
-	inode_bitmap_init();
-	write_root_dir();
-}
-
 void superblock_init(void)
 {
-	superblock *sb = malloc(sizeof(superblock));
+	superblock *sb = malloc(sizeof(block));
 	sb->inode_count = INODE_COUNT;
-	sb->block_count = BD_SIZE_BLOCKS-1;
-	sb->free_inode_count = INODE_COUNT;
-	sb->free_block_count = BD_SIZE_BLOCKS-1;
+	sb->block_count = BD_SIZE_BLOCKS;
+	sb->free_inode_count = INODE_COUNT-1;
+	sb->free_block_count = BD_SIZE_BLOCKS-4-INODE_TABLE_BLOCKS;  // 4 = super + bitmaps + rootdir
 	sb->magic = FS_MAGIC;
 	sb->state = FS_VALID;
-	blk_write(BLOCKID_SUPER, sb);
+	blk_write(BLOCKID_SUPER, (block*)sb);
 	free(sb);
 }
 
@@ -52,9 +44,13 @@ void block_bitmap_init(void)
 	set_bitmap(block_btm, BLOCKID_INODE_BITMAP);
 
 	//Mark all inode table blocks as used
-	for (uint16_t i = BLOCKID_INODE_TABLE; i < (INODE_COUNT >> 6) + BLOCKID_INODE_TABLE; i++) {
+	for (uint16_t i = BLOCKID_INODE_TABLE; i < INODE_TABLE_BLOCKS + BLOCKID_INODE_TABLE; i++) {
 		set_bitmap(block_btm, i);
 	}
+
+	//Mark root directory block as used
+	set_bitmap(block_btm, INODE_TABLE_BLOCKS + BLOCKID_INODE_TABLE + 1);
+
 	blk_write(BLOCKID_BLOCK_BITMAP, block_btm);
 	free(block_btm);
 }
@@ -73,12 +69,47 @@ void inode_bitmap_init(void)
 
 void write_root_dir(void)
 {
+	//Prepare inode
 	inode root_i;
-	time_t now = time(NULL);
-	root_i->created = now;
-	root_i->accessed = now;
-	root_i->modified = now;
-	root_i->type = ITYPE_DIR;
+	uint32_t now = time(NULL);
+	root_i.created = now;
+	root_i.accessed = now;
+	root_i.modified = now;
+	root_i.type = ITYPE_DIR;
+	root_i.size = 0;
+	root_i.data0[0] = BLOCKID_ROOT_DIR;
 
+	block* root_dir_block = malloc(sizeof(block));
+
+	// . (self entry)
+	dir_entry* root_dir_entry = (dir_entry*)root_dir_block;
+	root_dir_entry->fnode = 0;
+	root_dir_entry->file_type = ITYPE_DIR;
+	root_dir_entry->name_len = 1;
+	root_dir_entry->entry_len = 12;
+	memcpy(root_dir_entry->name, ".", 1);
+	root_i.size += 12;
+
+	// .. (parent entry, also itself)
+	root_dir_entry = (dir_entry*)(((char*)root_dir_block) + 12);
+	root_dir_entry->fnode = 0;
+	root_dir_entry->file_type = ITYPE_DIR;
+	root_dir_entry->name_len = 2;
+	root_dir_entry->entry_len = 12;
+	memcpy(root_dir_entry->name, "..", 2);
+	root_i.size += 12;
+
+	inode_write(0, &root_i);
+	blk_write(BLOCKID_ROOT_DIR, root_dir_block);
+
+	free(root_dir_block);
 }
 
+uint8_t mkfs(void)
+{
+	superblock_init();
+	block_bitmap_init();
+	inode_bitmap_init();
+	write_root_dir();
+	return 0;
+}

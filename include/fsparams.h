@@ -1,0 +1,28 @@
+/*
+ * fsparams.h
+ *
+ *  Created on: Feb 27, 2016
+ *      Author: parallels
+ */
+
+#ifndef INCLUDE_FSPARAMS_H_
+#define INCLUDE_FSPARAMS_H_
+
+#define FS_MAGIC 0xCD5E
+#define FS_VALID 0x0001
+#define FS_ERROR 0x0002
+
+#define BLOCKS_PER_INODE	4
+#define INODE_SIZE			64
+#define INODE_PADDING		7
+#define INODE_COUNT			(BD_SIZE_BLOCKS / BLOCKS_PER_INODE)
+#define INODE_TABLE_BLOCKS  ((INODE_COUNT) * (INODE_SIZE) / (BLOCK_SIZE))
+#define INODES_IN_BLOCK		((BLOCK_SIZE) / (INODE_SIZE))
+
+#define BLOCKID_SUPER			0
+#define BLOCKID_BLOCK_BITMAP	1
+#define BLOCKID_INODE_BITMAP	2
+#define BLOCKID_INODE_TABLE		3
+#define BLOCKID_ROOT_DIR		BLOCKID_INODE_TABLE + INODE_TABLE_BLOCKS - 1
+
+#endif /* INCLUDE_FSPARAMS_H_ */

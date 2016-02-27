@@ -25,7 +25,6 @@
 
 
 // function prototypes here
-void mkfs(void);
 
 int16_t cnopen(char *, uint8_t);
 char* cnread(int16_t, uint32_t);
