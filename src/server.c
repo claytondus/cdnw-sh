@@ -7,6 +7,8 @@
 
 #include <cdnwsh.h>
 #include <sys/select.h>
+#include </usr/include/netdb.h>
+#include <errno.h>
 
 struct svrconf shell_server;
 
@@ -23,7 +25,10 @@ void prep_select(void) {
 
 }
 
-in_port_t start_listening(void) {
+sh_err start_listening(void) {
+
+	sh_err net_err = SH_ERR_SUCCESS;
+	sh_err detail_err = SH_ERR_SUCCESS;
 
 	shell_server.status = SVR_STATUS_INIT;
 
@@ -36,34 +41,50 @@ in_port_t start_listening(void) {
 	FD_ZERO( &(shell_server.sockets_err) );
 
 	FD_SET(0, &(shell_server.sockets_in));	// listen to standard in
-	/*		This block is a work in progress - possible compiler flag conflict?
+	//		This block is a work in progress - possible compiler flag conflict?
 	struct addrinfo hints;
 	struct addrinfo *res;
 	int sockfd;
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET;  		// IPv4
+	hints.ai_family = AF_UNSPEC;  		// IPv4
 	hints.ai_socktype = SOCK_STREAM;	// TCP
 	hints.ai_flags = AI_PASSIVE;     // fill in my IP for me
 
-	getaddrinfo(NULL, "3490", &hints, &res);
+	getaddrinfo(NULL, SVR_PORT, &hints, &res);
 
 	// make a socket:
 
 	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int));
+	if(sockfd>0) {
+		net_err = bind(sockfd, res->ai_addr, res->ai_addrlen);
+		if(net_err<0) {
+			detail_err = errno;
+			net_err = SH_ERR_BINDSOCK;
+			printf("\nErrno: %d\n",detail_err);
+		}
+	} else {
+		net_err = SH_ERR_STARTSOCK;
+	}
 
-	bind(sockfd, res->ai_addr, res->ai_addrlen);
-
-	*/
 	shell_server.status = SVR_STATUS_RUN;
 
-	return 0;
+	return net_err;
 }
 
 
-char* recv_cmd(void) {
+char* recv_cmd(int socket_num) {
+	int size=0;
+	char *cmdbuffer;
+	cmdbuffer = malloc(sizeof(char)*SH_MAX_STR);
+	cmdbuffer[0] = '\0';
 
-	return NULL;
+	size = recv(socket_num, cmdbuffer, SH_MAX_STR*sizeof(char), 0);
+	if(size <= 0) {
+
+	}
+	return cmdbuffer;
 }
 
 
@@ -114,7 +135,19 @@ sh_err run(void) {
 					fflush(stdout);
 				} else {
 					// remote client
-					run_err = send_results(run_cmd(recv_cmd()));
+					result = recv_cmd(i);
+					if(result[0]=='\0') {
+						run_err = result[1];
+						strcpy(result,err_str(run_err));
+						run_err = send_results(result);
+					} else {
+						run_err = send_results(run_cmd(result));
+					}
+					if(run_err<0) {
+						printf("\n%s",err_str(run_err));
+						printf("\n%s",str_table[STR_PROMPT]);
+						fflush(stdout);
+					}
 				}
 
 			}
@@ -125,4 +158,3 @@ sh_err run(void) {
 	if(!run_err) run_err = shell_server.status;
 	return run_err;
 }
-

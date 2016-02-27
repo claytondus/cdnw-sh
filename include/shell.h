@@ -18,13 +18,14 @@
 #define SH_CMD_IMPORT		7
 #define SH_CMD_LS			8
 #define SH_CMD_MKDIR		9
-#define SH_CMD_OPEN			10
-#define SH_CMD_READ			11
-#define SH_CMD_RM			12
-#define SH_CMD_RMDIR		13
-#define SH_CMD_SEEK			14
-#define SH_CMD_TREE			15
-#define SH_CMD_WRITE		16
+#define SH_CMD_MKFS			10
+#define SH_CMD_OPEN			11
+#define SH_CMD_READ			12
+#define SH_CMD_RM			13
+#define SH_CMD_RMDIR		14
+#define SH_CMD_SEEK			15
+#define SH_CMD_TREE			16
+#define SH_CMD_WRITE		17
 
 
 typedef int8_t sh_err;
@@ -41,14 +42,18 @@ typedef int8_t sh_err;
 #define SH_ERR_BADARGS		-9
 #define SH_ERR_BADCMD		-10
 #define SH_ERR_SOCKET		-11
+#define SH_ERR_RECV			-12
+#define SH_ERR_STARTSOCK	-13
+#define SH_ERR_BINDSOCK		-14
 
-#define SH_CMD_NUM			17
+#define SH_CMD_NUM			18
 #define SH_MAX_ARGS			16
 #define SH_MAX_STR			256
 
 #define STR_PROMPT			0
 #define STR_CMDS			1
 #define STR_EXIT			2
+#define STR_DEFAULT_PORT	3
 
 extern const char *err_strings[];
 

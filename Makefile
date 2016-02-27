@@ -9,7 +9,7 @@ MKDIR = mkdir -p
 UNITY_ROOT=contrib/unity
 C_COMPILER=gcc
 
-CFLAGS=-std=c11
+CFLAGS=
 CFLAGS += -Wall
 CFLAGS += -Wextra
 CFLAGS += -Werror 
@@ -34,7 +34,7 @@ src/*.c \
 test/*.c \
 test/test_runners/*.c
 DEBUG_SRC_FILES=\
-src/blockdev.c src/client.c src/server.c src/shell.c src/cdnwsh.c
+src/blockdev.c src/client.c src/server.c src/shell.c src/cdnwsh.c src/bitmap.c src/inode.c src/fs.c
 TEST_INC_DIRS=-Isrc -Iinclude -I$(UNITY_ROOT)/src -I$(UNITY_ROOT)/extras/fixture/src
 DEBUG_INC_DIRS=-Isrc -Iinclude 
 TEST_LDFLAGS = 

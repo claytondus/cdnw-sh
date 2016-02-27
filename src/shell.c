@@ -9,8 +9,9 @@
 
 const char *str_table[] = {
 		"\ncdnw-shell> \0",
-		"Available commands: cat cd close connect exit export help import ls mkdir open read rm rmdir seek tree write\0",
-		"Exiting...\0"
+		"Available commands: cat cd close connect exit export help import ls mkdir mkfs open read rm rmdir seek tree write\0",
+		"Exiting...\0",
+		"5560\0"
 };
 
 const char *err_strings[] = {
@@ -25,7 +26,10 @@ const char *err_strings[] = {
 		"ERROR: invalid operation, no virtual file system has been mounted\0",
 		"ERROR: invalid parameters, unable to run this command\0",
 		"ERROR: command not found\0",
-		"ERROR: socket - unable to run select()\0"
+		"ERROR: socket - unable to run select()\0",
+		"ERROR: unable to receive command, network error on recv()\0",
+		"ERROR: unable to allocate network socket\0",
+		"ERROR: unable to bind to socket\0"
 };
 
 struct cmd_entry sh_cmds[] = {
@@ -42,6 +46,7 @@ struct cmd_entry sh_cmds[] = {
 		{"import\0",sh_import,"Usage: import <external_filename> <internal_filename>\0"},
 		{"ls\0",sh_ls,"Usage: ls\0"},
 		{"mkdir\0",sh_mkdir,"Usage: mkdir <dir_name>\0"},
+		{"mkfs\0",sh_mkfs,"Usage: mkfs\n Check and mount the virtual file system\0"},
 		{"open\0",sh_open,"Usage: open <filename> <R/W>\n"
 				"OPEN initializes access to a file for reading or writing.\n"
 				"In the second parameter, 1 = read and 2 = write\0"},
@@ -89,7 +94,7 @@ char* run_cmd(char *cmdstr) {
 
 	}
 
-	if(cmd_tok && strncmp(cmd_tok,"\n",1)) {
+	if(cmd_tok && cmd_tok[0] && strncmp(cmd_tok,"\n",1) && strncmp(cmd_tok,"\r",1) && strncmp(cmd_tok," ",1)) {
 		int i;
 		for(i=0; i<SH_CMD_NUM; i++) {
 			if(!strcmp(cmd_tok,sh_cmds[i].name)) {
@@ -117,6 +122,15 @@ char* sh_exit(int cmd_argc, char* cmd_argv[]) {
 	result = malloc(sizeof(char)*strlen(str_table[STR_EXIT]));
 	strcpy(result, str_table[STR_EXIT]);
 
+	return result;
+}
+
+
+char* sh_mkfs(int cmd_argc, char* cmd_argv[]) {
+	char* result = NULL;
+	(void)(cmd_argc);
+	(void)(cmd_argv);
+	mkfs();
 	return result;
 }
 
@@ -262,6 +276,5 @@ char* sh_help(int cmd_argc, char* cmd_argv[]) {
 
 	return result;
 }
-
 
 
