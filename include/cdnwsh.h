@@ -25,8 +25,8 @@
 
 
 //server.c
-in_port_t start_listening(void);
-char* recv_cmd(void);
+sh_err start_listening(void);
+char* recv_cmd(int);
 sh_err send_results(char*);
 sh_err run(void);					// loop to check sockets sets (fd_set)
 
@@ -46,6 +46,8 @@ char* sh_write(int, char*[]);
 char* sh_seek(int, char*[]);
 char* sh_close(int, char*[]);
 char* sh_mkdir(int, char*[]);
+char* sh_mkfs(int, char*[]);
+
 char* sh_rmdir(int, char*[]);
 char* sh_cd(int, char*[]);
 char* sh_ls(int, char*[]);
