@@ -30,12 +30,14 @@
 typedef struct {
 	uint8_t state;
 	int16_t fd;
-	iptr fnode;
+	inode inode;
 	uint32_t cursor;
 } fd_entry;
 
 
 int8_t cnmkfs(void);
+int8_t cnmount(void);
+int8_t cnumount(void);
 int16_t cnopen(char *, uint8_t);
 char* cnread(int16_t, uint32_t);
 int8_t cnwrite(int16_t, char*);
@@ -43,7 +45,6 @@ int8_t cnseek(int16_t, int32_t);
 int8_t cnclose(int16_t);
 int8_t cnmkdir(char*);
 int8_t cnrmdir(char*);
-int8_t cnrm(char*);
 int8_t cncd(char*);
 char* cnls(void);
 char* cncat(char*);

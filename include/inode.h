@@ -13,12 +13,15 @@
 #include <string.h>
 #include "fsparams.h"
 
+#define INODE_ROOTDIR 0
 
 typedef uint32_t iptr; // inode pointer
+
 
 typedef struct {
 	uint8_t type;
 	uint32_t size;
+	uint32_t blocks;
 
 	uint32_t created;
 	uint32_t modified;
