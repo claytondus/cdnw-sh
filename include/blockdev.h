@@ -11,6 +11,7 @@
 #define BD_SIZE_BLOCKS 25600
 
 #include <stdint.h>
+#include "debug.h"
 #include "block.h"
 
 int8_t blockdev_attach(void);

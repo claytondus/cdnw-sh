@@ -2,8 +2,9 @@
 
 static void RunAllTests(void)
 {
-  RUN_TEST_GROUP(blockdev);
+  //RUN_TEST_GROUP(blockdev);
   RUN_TEST_GROUP(fs);
+  //RUN_TEST_GROUP(bitmap);
 }
 
 int main(int argc, const char * argv[])

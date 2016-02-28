@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "debug.h"
 #include "block.h"
 
 uint32_t find_free_bit(block* blk);

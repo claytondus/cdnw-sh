@@ -70,7 +70,8 @@ int8_t blk_read(const uint32_t lba, block* b_ptr) {
 	if(b_ptr == NULL || lba > BD_SIZE_BLOCKS) {
 		return -1;
 	}
-	memcpy(b_ptr->byte, bd+(lba*sizeof(block)), BLOCK_SIZE);
+	//debug("Reading block %u",lba);
+	memcpy(b_ptr->byte, ((block*)bd)+lba, BLOCK_SIZE);
 	return 0;
 }
 
@@ -78,7 +79,8 @@ int8_t blk_write(const uint32_t lba, const block* b_ptr) {
 	if(b_ptr == NULL || lba > BD_SIZE_BLOCKS) {
 		return -1;
 	}
-	memcpy(bd+(lba*sizeof(block)), b_ptr->byte, BLOCK_SIZE);
-	msync(bd+(lba*sizeof(block)), BLOCK_SIZE, MS_SYNC);
+	//debug("Writing block %u",lba);
+	memcpy(((block*)bd)+lba, b_ptr->byte, BLOCK_SIZE);
+	msync(((block*)bd)+lba, BLOCK_SIZE, MS_SYNC);
 	return 0;
 }

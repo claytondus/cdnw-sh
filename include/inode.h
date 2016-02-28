@@ -25,7 +25,6 @@ typedef struct {
 
 	uint32_t created;
 	uint32_t modified;
-	uint32_t accessed;
 
 	iptr data0[8];		// direct data block pointers
 	iptr data1;			// single indirect data block pointers

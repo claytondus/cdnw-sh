@@ -43,7 +43,7 @@ char* cnread(int16_t, uint32_t);
 int8_t cnwrite(int16_t, char*);
 int8_t cnseek(int16_t, int32_t);
 int8_t cnclose(int16_t);
-int8_t cnmkdir(char*);
+int8_t cnmkdir(const char*);
 int8_t cnrmdir(char*);
 int8_t cncd(char*);
 char* cnls(void);

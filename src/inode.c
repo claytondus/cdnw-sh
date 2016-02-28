@@ -16,12 +16,14 @@ uint32_t find_inode_table_blockid(iptr index)
 
 uint8_t inode_write(iptr index, inode* inode_st)
 {
+
 	block* inode_blk = malloc(sizeof(block));
 	uint32_t lba = BLOCKID_INODE_TABLE + find_inode_table_blockid(index);
 	blk_read(lba, inode_blk);
 
 	inode* inode_table = (inode*)inode_blk;
 	memcpy(inode_table + (index % INODES_IN_BLOCK), inode_st, sizeof(inode));
+	//debug("writing inode %u at block %u offset %u",index,lba,(index % INODES_IN_BLOCK));
 	blk_write(lba, inode_blk);
 
 	free(inode_blk);
@@ -36,6 +38,7 @@ uint8_t inode_read(iptr index, inode* inode_st)
 
 	inode* inode_table = (inode*)inode_blk;
 	memcpy(inode_st, inode_table + (index % INODES_IN_BLOCK), sizeof(inode));
+	//debug("reading inode %u at block %u offset %u",index,lba,(index % INODES_IN_BLOCK));
 
 	free(inode_blk);
 	return 0;

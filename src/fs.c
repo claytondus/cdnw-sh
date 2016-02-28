@@ -25,6 +25,7 @@ typedef struct {
 
 typedef struct {
 	inode inode_st;
+	iptr inode;
 	uint32_t index;
 	block* data;
 } dir_ptr;
@@ -70,6 +71,63 @@ fd_entry fd_tbl[MAX_FD];
 iptr cwd_iptr;
 char cwd_str[4096];
 
+
+//************flush_metadata************
+void flush_metadata(void)
+{
+	blk_write(BLOCKID_SUPER, &superblk_cache);
+	blk_write(BLOCKID_BLOCK_BITMAP, &block_bm_cache);
+	blk_write(BLOCKID_INODE_BITMAP, &inode_bm_cache);
+}
+
+//*************reserve_inode************
+iptr reserve_inode(void)
+{
+	superblock* super = (superblock*)&superblk_cache;
+	if(super->free_inode_count == 0)
+	{
+		return 0;
+	}
+	iptr inode_ptr = find_free_bit(&inode_bm_cache);
+	set_bitmap(&inode_bm_cache, inode_ptr);
+	super->free_inode_count--;
+	flush_metadata();
+	return inode_ptr;
+}
+
+//**************release_inode***********
+void release_inode(iptr inode_ptr)
+{
+	superblock* super = (superblock*)&superblk_cache;
+	clear_bitmap(&inode_bm_cache, inode_ptr);
+	super->free_inode_count++;
+	flush_metadata();
+}
+
+//*************reserve_block************
+iptr reserve_block(void)
+{
+	superblock* super = (superblock*)&superblk_cache;
+	if(super->free_block_count == 0)
+	{
+		return 0;
+	}
+	iptr blockid = find_free_bit(&block_bm_cache);
+	set_bitmap(&block_bm_cache, blockid);
+	super->free_block_count--;
+	flush_metadata();
+	return blockid;
+}
+
+//**************release_block***********
+void release_block(iptr blockid)
+{
+	superblock* super = (superblock*)&superblk_cache;
+	clear_bitmap(&block_bm_cache, blockid);
+	super->free_block_count++;
+	flush_metadata();
+}
+
 //*****************mount****************
 int8_t cnmount(void)
 {
@@ -105,6 +163,7 @@ int8_t cnumount(void)
 void superblock_init(void)
 {
 	superblock *sb = malloc(sizeof(block));
+	memset(sb, 0, sizeof(block));
 	sb->inode_count = INODE_COUNT;
 	sb->block_count = BD_SIZE_BLOCKS;
 	sb->free_inode_count = INODE_COUNT-1;
@@ -131,7 +190,7 @@ void block_bitmap_init(void)
 	}
 
 	//Mark root directory block as used
-	set_bitmap(block_btm, INODE_TABLE_BLOCKS + BLOCKID_INODE_TABLE + 1);
+	set_bitmap(block_btm, INODE_TABLE_BLOCKS + BLOCKID_INODE_TABLE);
 
 	blk_write(BLOCKID_BLOCK_BITMAP, block_btm);
 	free(block_btm);
@@ -145,7 +204,7 @@ void inode_bitmap_init(void)
 	//Mark first inode as used
 	set_bitmap(inode_btm, 0);
 
-	blk_write(BLOCKID_BLOCK_BITMAP, inode_btm);
+	blk_write(BLOCKID_INODE_BITMAP, inode_btm);
 	free(inode_btm);
 }
 
@@ -155,7 +214,6 @@ void write_root_dir(void)
 	inode root_i;
 	uint32_t now = time(NULL);
 	root_i.created = now;
-	root_i.accessed = now;
 	root_i.modified = now;
 	root_i.type = ITYPE_DIR;
 	root_i.size = 0;
@@ -237,15 +295,17 @@ int8_t llwrite(inode* inode_ptr, block* buf)
 }
 
 //******** readdir ******************
+//Return the dir_entry at the index within dir_ptr, and increment by entry_len.
 dir_entry* cnreaddir(dir_ptr* dir)
 {
-	dir_ptr* dir_indexed = (dir_ptr*)(((uint8_t*)dir)+dir->index);
-	dir_entry* entry = (dir_entry*)dir_indexed->data;
-	dir->index += entry->entry_len;
 	if(dir->index >= dir->inode_st.size)      //Reached the end of the directory file
 	{
 		return NULL;
 	}
+	uint8_t* entry_8 = (uint8_t*)dir->data;
+	entry_8 += dir->index;
+	dir_entry* entry = (dir_entry*)entry_8;
+	dir->index += entry->entry_len;
 	return entry;
 }
 
@@ -257,10 +317,12 @@ dir_ptr* cnopendir(char* name)
 	if(memcmp(name,"/",1) == 0)					//Is this path absolute or relative
 	{
 		inode_read(INODE_ROOTDIR, &dir->inode_st);   //Start at the root dir
+		dir->inode = INODE_ROOTDIR;
 	}
 	else
 	{
 		inode_read(cwd_iptr, &dir->inode_st);		//Start at cwd
+		dir->inode = cwd_iptr;
 	}
 
 	char* name_tok = strtok(name, "/");
@@ -288,6 +350,7 @@ dir_ptr* cnopendir(char* name)
 				break;
 			}
 		}
+		return NULL; //Could not find name here
 	} while(1);
 }
 
@@ -296,8 +359,120 @@ dir_ptr* cnopendir(char* name)
 //******** closedir *****************
 void cnclosedir(dir_ptr* dir)
 {
+	if(dir == NULL) return;
+	if(dir->data == NULL) return;
 	free(dir->data);
 	free(dir);
+}
+
+
+//******** mkdir ********************
+int8_t cnmkdir(const char* name) {
+
+	char* name_copy = strdup(name);
+	char name_tok[256];
+	char* next_name_tok;
+	dir_ptr *dir = malloc(sizeof(dir_ptr));		//Directory file in memory (e.g. DIR object from filedef.h)
+	bool last_dir = false;
+
+	inode_read(cwd_iptr, &dir->inode_st);		//Start at cwd
+
+	next_name_tok = strtok(name_copy, "/");
+	strcpy(name_tok, next_name_tok);
+	dir_entry* entry;
+	do
+	{
+		//Read the directory file for this inode
+		dir->data = malloc(sizeof(block)*(dir->inode_st.blocks));  	//Memory for all directory file blocks
+		llread(&dir->inode_st, dir->data);	//Read the directory file
+		dir->index = 0;
+
+		next_name_tok = strtok(NULL, "/");		//Read the next token
+		if(next_name_tok == NULL)   //This is the last directory in the path
+		{
+			last_dir = true;
+		}
+
+		//Find the token in this dir
+		while((entry = cnreaddir(dir)))
+		{
+			if(memcmp(entry->name, name_tok, entry->name_len) == 0)  //If this directory already exists
+			{
+				if(last_dir)
+				{
+					return -1;   //Directory already exists
+				}
+				else   //Read the directory inode
+				{
+					dir->inode = entry->inode;
+					inode_read(entry->inode,&dir->inode_st);   //Read the next directory's inode
+					free(dir->data);  //Forget the directory we just read
+					break;
+				}
+			}
+		}
+
+		if(last_dir)  //Create the directory at the end of the list
+		{
+			//Create parent directory entry
+			entry = (dir_entry*)(((uint8_t*)dir->data)+dir->index);
+			entry->file_type = ITYPE_DIR;
+			entry->inode = reserve_inode();
+			memcpy(entry->name,name_tok,strlen(name_tok));
+			entry->name_len = strlen(name_tok);
+			entry->entry_len = entry->name_len + 8;
+			entry->entry_len += (4 - entry->entry_len % 4);  //padding out to 32 bits
+			dir->inode_st.size += entry->entry_len;
+			//TODO: handle mkdir block overflow
+
+			//Write parent dir and inode
+			inode_write(dir->inode, &dir->inode_st);
+			blk_write(dir->inode_st.data0[0], dir->data);
+
+			//Write new directory inode
+			inode new_dir_i;
+			uint32_t now = time(NULL);
+			new_dir_i.created = now;
+			new_dir_i.modified = now;
+			new_dir_i.type = ITYPE_DIR;
+			new_dir_i.size = 0;
+			new_dir_i.blocks = 1;
+			new_dir_i.data0[0] = reserve_block();
+
+			//Write new directory file
+			block* new_dir_block = malloc(sizeof(block));
+			memset(new_dir_block, 0, sizeof(block));
+
+			// . (self entry)
+			dir_entry* new_dir_self_entry = (dir_entry*)new_dir_block;
+			new_dir_self_entry->inode = entry->inode;
+			new_dir_self_entry->file_type = ITYPE_DIR;
+			new_dir_self_entry->name_len = 1;
+			new_dir_self_entry->entry_len = 12;
+			memcpy(new_dir_self_entry->name, ".", 1);
+			new_dir_i.size += 12;
+
+			// .. (parent entry)
+			new_dir_self_entry = (dir_entry*)(((char*)new_dir_block) + 12);
+			new_dir_self_entry->inode = dir->inode;
+			new_dir_self_entry->file_type = ITYPE_DIR;
+			new_dir_self_entry->name_len = 2;
+			new_dir_self_entry->entry_len = 12;
+			memcpy(new_dir_self_entry->name, "..", 2);
+			new_dir_i.size += 12;
+
+			//Write new dir and inode
+			inode_write(entry->inode, &new_dir_i);
+			blk_write(new_dir_i.data0[0], new_dir_block);
+
+			free(new_dir_block);
+			break;
+		}
+
+	} while(1);
+	free(dir);
+	free(name_copy);
+	return 0;
 }
 
 //******** stat *********************
