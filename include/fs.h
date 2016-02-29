@@ -70,7 +70,7 @@ dir_ptr* cnopendir(const char* name);
 void cnclosedir(dir_ptr* dir);
 dir_entry* cnreaddir(dir_ptr* dir);
 int8_t cnmkdir(const char*);
-int8_t cnrmdir(char*);
+int8_t cnrmdir(const char*);
 int8_t cncd(const char*);
 int8_t cnpwd(char*);
 int8_t cnls(const char *, char*);

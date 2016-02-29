@@ -191,3 +191,22 @@ TEST(fs, ReadWriteShouldComplete)
 	TEST_ASSERT_TRUE(21 == bytes_read);
 	cnumount();
 }
+
+TEST(fs, RmdirShouldComplete)
+{
+	cnmkfs();
+	cnmount();
+	cnmkdir("test1");
+	cnmkdir("test2");
+	char lsbuf[512];
+	cnls("",lsbuf);
+	system("hd /tmp/fs.bin");
+	debug("%s",lsbuf);
+	int8_t result = cnrmdir("test1");
+	char lsbuf2[512];
+	cnls("",lsbuf2);
+	debug("%s",lsbuf2);
+	system("hd /tmp/fs.bin");
+	TEST_ASSERT_EQUAL_INT8(0, result);
+	cnumount();
+}

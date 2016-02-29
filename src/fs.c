@@ -562,7 +562,7 @@ int8_t cnmkdir(const char* name)
 			new_dir_i.size += 12;
 
 			// .. (parent entry)
-			dir_entry* new_dir_parent_entry = (dir_entry*)(((char*)new_dir_block) + 12);
+			dir_entry* new_dir_parent_entry = (dir_entry*)(((uint8_t*)new_dir_block) + 12);
 			new_dir_parent_entry->inode = dir->inode_id;
 			new_dir_parent_entry->file_type = ITYPE_DIR;
 			new_dir_parent_entry->name_len = 2;
@@ -583,6 +583,62 @@ int8_t cnmkdir(const char* name)
 	free(name_copy);
 	return 0;
 }
+
+//******** rmdir ********************
+int8_t cnrmdir(const char* name)
+{
+	char parent_name[512];
+	char entry_name[256];
+	dir_entry* entry;
+	inode dir_inode;
+
+	strcpy(parent_name, name);
+	strcat(parent_name, "/..");
+
+	dir_ptr* parent = cnopendir(parent_name);
+	check(parent != NULL, "Cannot open parent directory");
+
+	//Copy the entire directory minus the entry
+	dir_ptr* new_parent = calloc(1,sizeof(dir_ptr));
+	new_parent->data = calloc(parent->inode_st.blocks, sizeof(block));
+	dir_entry* new_dir_entry = (dir_entry*)new_parent->data;
+	new_parent->inode_st = parent->inode_st;
+	new_parent->inode_id = parent->inode_id;
+	new_parent->inode_st.size = 0;
+	new_parent->index = 0;
+
+	while((entry = cnreaddir(parent)))
+	{
+		memcpy(entry_name, entry->name, entry->name_len);
+		entry_name[entry->name_len] = 0;
+		if(strcmp(entry_name, name) == 0)  //If this is the directory we want
+		{
+			inode_read(entry->inode, &dir_inode);
+			check(dir_inode.size == 24, "Directory is not empty");
+			release_block(dir_inode.data0[0]);  //Release target directory block
+			release_inode(entry->inode);        //Release target inode
+			continue;
+		}
+		new_dir_entry->entry_len = entry->entry_len;
+		new_dir_entry->name_len = entry->name_len;
+		new_dir_entry->file_type = entry->file_type;
+		new_dir_entry->inode = entry->inode;
+		memcpy(new_dir_entry->name, entry->name, entry->name_len);
+		new_parent->inode_st.size += entry->entry_len;
+		new_parent->index += entry->entry_len;
+		new_dir_entry = (dir_entry*)((uint8_t*)new_parent->data+new_parent->index);
+	}
+
+	inode_write(new_parent->inode_id, &new_parent->inode_st);
+	llwrite(&new_parent->inode_st, new_parent->data);
+
+
+
+	return 0;
+error:
+	return -1;
+}
+
 
 //******** ls ***********************
 int8_t cnls(const char* name, char* buf)
