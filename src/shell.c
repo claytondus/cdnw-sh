@@ -11,7 +11,8 @@ const char *str_table[] = {
 		"\ncdnw-shell> \0",
 		"Available commands: cat cd close connect exit export help import ls mkdir mkfs open read rm rmdir seek tree write\0",
 		"Exiting...\0",
-		"5560\0"
+		"5560\0",
+		"\nremote-cdnw> \0"
 };
 
 const char *err_strings[] = {
@@ -26,10 +27,14 @@ const char *err_strings[] = {
 		"ERROR: invalid operation, no virtual file system has been mounted\0",
 		"ERROR: invalid parameters, unable to run this command\0",
 		"ERROR: command not found\0",
-		"ERROR: socket - unable to run select()\0",
+		"ERROR: socket - unable to run poll()\0",
 		"ERROR: unable to receive command, network error on recv()\0",
 		"ERROR: unable to allocate network socket\0",
-		"ERROR: unable to bind to socket\0"
+		"ERROR: unable to bind to socket\0",
+		"ERROR: problem connecting to server \0",
+		"ERROR: problem disconnecting from server, assuming connection closed \0",
+		"ERROR: problem listening on the bound port \0",
+		"ERROR: unable to receive results, network error on recv()\0"
 };
 
 struct cmd_entry sh_cmds[] = {
@@ -37,7 +42,7 @@ struct cmd_entry sh_cmds[] = {
 		{"cd\0",sh_cd,"Usage: cd <dir_name>\0"},
 		{"close\0",sh_close,"Usage: close <fd>\n"
 				"fd = file descriptor\0"},
-		{"connect\0",sh_connect,"Usage: connect <server_ip> <server_port>\0"},
+		{"connect\0",sh_connect,"Usage: connect <server_ip/name> <server_port>\0"},
 		{"exit\0",sh_exit,"Usage: exit\nIf used at a remote server prompt, "
 				"EXIT will disconnect the client connection.\nIf used at a local prompt, "
 				"EXIT will close the shell and stop the client or server\0"},
@@ -78,7 +83,7 @@ char* run_cmd(char *cmdstr) {
 			if(cmd_tok) {
 				cmd_argv[cmd_argc] = malloc(sizeof(char)*(i-last_stop));
 				strncpy(cmd_argv[cmd_argc],cmdstr+last_stop+1,(i-last_stop-1));
-				(cmd_argv[cmd_argc])[i-last_stop] = '\0';
+				(cmd_argv[cmd_argc])[i-last_stop-1] = '\0';
 
 				cmd_argc++;
 			} else {
@@ -95,14 +100,18 @@ char* run_cmd(char *cmdstr) {
 	}
 
 	if(cmd_tok && cmd_tok[0] && strncmp(cmd_tok,"\n",1) && strncmp(cmd_tok,"\r",1) && strncmp(cmd_tok," ",1)) {
-		int i;
+		int i,j;
 		for(i=0; i<SH_CMD_NUM; i++) {
 			if(!strcmp(cmd_tok,sh_cmds[i].name)) {
 				result = sh_cmds[i].sh_cmd(cmd_argc, cmd_argv);
+				free(cmd_tok);
+				for(j=0;j<cmd_argc;j++) {
+					free(cmd_argv[j]);
+				}
 				break;
 			}
 		}
-		if(i==SH_CMD_NUM) {
+		if(!result) {
 			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_BADCMD))+1));
 			strcpy(result,err_str(SH_ERR_BADCMD));
 		}
@@ -115,12 +124,27 @@ char* run_cmd(char *cmdstr) {
 
 char* sh_exit(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
+	sh_err cmd_err = SH_ERR_SUCCESS;
 	(void)(cmd_argc);
 	(void)(cmd_argv);
+	if(shell_client.status == CLIENT_STATUS_OPEN) {
+		cmd_err = rclose();
+		if(cmd_err<0) {
+			char* str_errno = strerror(errno);
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_RCLOSE))+strlen(str_errno)+2));
+			strcpy(result, err_str(SH_ERR_RCLOSE));
+			strcat(result, "\n");
+			strcat(result, str_errno);
+		} else {
 
-	shell_server.status = SVR_STATUS_EXIT;
-	result = malloc(sizeof(char)*strlen(str_table[STR_EXIT]));
-	strcpy(result, str_table[STR_EXIT]);
+			result = malloc(sizeof(char)*(strlen("Connection to server closed\0")+2));
+			strcpy(result, "Connection to server closed\0");
+		}
+	} else {
+		shell_server.status = SVR_STATUS_EXIT;
+		result = malloc(sizeof(char)*strlen(str_table[STR_EXIT]));
+		strcpy(result, str_table[STR_EXIT]);
+	}
 
 	return result;
 }
@@ -245,15 +269,33 @@ char* sh_export(int cmd_argc, char* cmd_argv[]) {
 
 char* sh_connect(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-	(void)(cmd_argc);
-	(void)(cmd_argv);
+	sh_err cmd_err = SH_ERR_SUCCESS;
+
+	if(cmd_argc != 2) {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_CONNECT].help)+2));
+		strcpy(result, sh_cmds[SH_CMD_CONNECT].help);
+	} else {
+		cmd_err = rconnect(cmd_argv[0],cmd_argv[1]);
+		if(cmd_err>=0) {
+			result = malloc(sizeof(char)*(strlen("Connected to server: ")+strlen(cmd_argv[0])+2));
+			strcpy(result, "Connected to server: ");
+			strcat(result, cmd_argv[0]);
+		} else {
+			char* str_errno = strerror(errno);
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_RCONNECT))+strlen(cmd_argv[0])+strlen(str_errno)+2));
+			strcpy(result, err_str(SH_ERR_RCONNECT));
+			strcat(result, cmd_argv[0]);
+			strcat(result, "\n");
+			strcat(result, str_errno);
+		}
+	}
 
 	return result;
 }
 
 char* sh_help(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
-	(void)(cmd_argv);
+
 	if(cmd_argc) {
 		int i;
 		for(i=0; i<SH_CMD_NUM; i++) {
@@ -264,17 +306,16 @@ char* sh_help(int cmd_argc, char* cmd_argv[]) {
 			}
 		}
 		if(!result) {
-			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_BADCMD))+1));
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_BADCMD))+2));
 			strcpy(result,err_str(SH_ERR_BADCMD));
 		}
 	} else {
-		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_HELP].help)+strlen(str_table[STR_CMDS])+1));
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_HELP].help)+strlen(str_table[STR_CMDS])+2));
 		strcpy(result, sh_cmds[SH_CMD_HELP].help);
-		strcpy(result, "\n");
-		strcpy(result, str_table[STR_CMDS]);
+		strcat(result, "\n");
+		strcat(result, str_table[STR_CMDS]);
 	}
 
 	return result;
 }
-
 

@@ -24,15 +24,18 @@
 #include "fs.h"
 
 
+// function prototypes here
+
 //server.c
 sh_err start_listening(void);
-char* recv_cmd(int);
+char* recv_cmd(void);
 sh_err send_results(char*);
 sh_err run(void);					// loop to check sockets sets (fd_set)
 
 //client.c
-int cnconnect(struct sockaddr_in);
+sh_err rconnect(char*,char*);
 sh_err send_cmd(char*);
+sh_err rclose(void);
 char* recv_results(void);
 
 // shell.c
