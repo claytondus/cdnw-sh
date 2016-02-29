@@ -38,6 +38,10 @@
 #define CLIENT_STATUS_ERR		-1
 #define CLIENT_CODE_CLOSE		7
 
+#define VFS_STATUS_OFF			0
+#define VFS_STATUS_ON			1
+
+
 struct svrconf {
 	int8_t status;
 	int svrfd;
@@ -45,6 +49,7 @@ struct svrconf {
 	int8_t client;	// status of client
 	int clientfd;
 	int num_fds;
+	int8_t vfs;
 };
 
 struct clientconf {

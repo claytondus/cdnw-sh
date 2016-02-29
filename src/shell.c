@@ -120,14 +120,10 @@ char* run_cmd(char *cmdstr) {
 	}
 
 	if(cmd_tok && cmd_tok[0] && strncmp(cmd_tok,"\n",1) && strncmp(cmd_tok,"\r",1) && strncmp(cmd_tok," ",1)) {
-		int i,j;
+		int i;
 		for(i=0; i<SH_CMD_NUM; i++) {
 			if(!strcmp(cmd_tok,sh_cmds[i].name)) {
 				result = sh_cmds[i].sh_cmd(cmd_argc, cmd_argv);
-				free(cmd_tok);
-				for(j=0;j<cmd_argc;j++) {
-					free(cmd_argv[j]);
-				}
 				break;
 			}
 		}
@@ -137,6 +133,11 @@ char* run_cmd(char *cmdstr) {
 		}
 	} else {
 		result = NULL;
+	}
+	if(cmd_tok) free(cmd_tok);
+	int j=0;
+	for(j=0;j<cmd_argc;j++) {
+		free(cmd_argv[j]);
 	}
 
 	return result;
@@ -175,22 +176,29 @@ char* sh_mkfs(int cmd_argc, char* cmd_argv[]) {
 	sh_err cmd_err = SH_ERR_SUCCESS;
 	(void)(cmd_argc);
 	(void)(cmd_argv);
-	cmd_err = cnmkfs();
+	cmd_err = blockdev_attach();
+	if(cmd_err>=SH_ERR_SUCCESS) {
+		cmd_err = cnmkfs();
 
-	if(cmd_err<0) {
-		// error
-		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
-		strcpy(result, err_str(SH_ERR_UNK));
-	} else {
-		cmd_err=cnmount();
 		if(cmd_err<0) {
 			// error
 			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
 			strcpy(result, err_str(SH_ERR_UNK));
 		} else {
-			result = malloc(sizeof(char)*(strlen("Virtual file system initialized and mounted.")+2));
-			strcpy(result, "Virtual file system initialized and mounted.");
+			cmd_err=cnmount();
+			if(cmd_err<0) {
+				// error
+				result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+				strcpy(result, err_str(SH_ERR_UNK));
+			} else {
+				shell_server.vfs = VFS_STATUS_ON;
+				result = malloc(sizeof(char)*(strlen("Virtual file system initialized and mounted.")+2));
+				strcpy(result, "Virtual file system initialized and mounted.");
+			}
 		}
+	} else {
+		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+		strcpy(result, err_str(SH_ERR_UNK));
 	}
 	return result;
 }
@@ -198,8 +206,8 @@ char* sh_mkfs(int cmd_argc, char* cmd_argv[]) {
 char* sh_open(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
-	(void)(cmd_argv);
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 2) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_OPEN].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_OPEN].help);
@@ -230,6 +238,7 @@ char* sh_close(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 1) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_CLOSE].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_CLOSE].help);
@@ -251,6 +260,7 @@ char* sh_close(int cmd_argc, char* cmd_argv[]) {
 char* sh_read(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 2) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_READ].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_READ].help);
@@ -277,6 +287,7 @@ char* sh_write(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 2) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_WRITE].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_WRITE].help);
@@ -304,6 +315,7 @@ char* sh_seek(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 2) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_SEEK].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_SEEK].help);
@@ -327,6 +339,7 @@ char* sh_mkdir(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 1) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_MKDIR].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_MKDIR].help);
@@ -348,6 +361,7 @@ char* sh_rmdir(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 1) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_RMDIR].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_RMDIR].help);
@@ -370,6 +384,7 @@ char* sh_rm(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 1) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_RM].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_RM].help);
@@ -392,13 +407,13 @@ char* sh_cat(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 1) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_CAT].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_CAT].help);
 	} else {
-		(void)cmd_argv;
 		result = malloc(sizeof(char)*4096);
-		//cmd_err = cncat(cmd_argv[0],result);
+		cmd_err = cncat(cmd_argv[0],result);
 		if(cmd_err<0) {
 			// error
 			free(result);
@@ -413,6 +428,7 @@ char* sh_cd(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 1) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_CD].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_CD].help);
@@ -434,6 +450,7 @@ char* sh_ls(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc>1) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_LS].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_LS].help);
@@ -459,6 +476,7 @@ char* sh_pwd(int cmd_argc, char* cmd_argv[]) {
 	sh_err cmd_err = SH_ERR_SUCCESS;
 	(void)cmd_argv;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc>0) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_PWD].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_PWD].help);
@@ -480,6 +498,7 @@ char* sh_tree(int cmd_argc, char* cmd_argv[]) {
 	sh_err cmd_err = SH_ERR_SUCCESS;
 	(void)(cmd_argv);
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc>0) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_TREE].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_TREE].help);
@@ -500,6 +519,7 @@ char* sh_import(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
 
+	if(chk_vfs(&result)<0) return result;
 	if(cmd_argc != 2) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_IMPORT].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_IMPORT].help);
@@ -521,6 +541,9 @@ char* sh_import(int cmd_argc, char* cmd_argv[]) {
 char* sh_export(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
+
+	if(chk_vfs(&result)<0) return result;
+	if(chk_vfs(&result)) return result;
 
 	if(cmd_argc != 2) {
 		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_EXPORT].help)+2));
@@ -590,5 +613,16 @@ char* sh_help(int cmd_argc, char* cmd_argv[]) {
 	}
 
 	return result;
+}
+
+sh_err chk_vfs(char** result) {
+
+	sh_err vfs_err = SH_ERR_SUCCESS;
+	if(shell_server.vfs != VFS_STATUS_ON) {
+		*result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_NOVFS))+2));
+		strcpy(*result,err_str(SH_ERR_NOVFS));
+		vfs_err = SH_ERR_NOVFS;
+	}
+	return vfs_err;
 }
 

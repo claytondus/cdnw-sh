@@ -31,6 +31,7 @@ sh_err start_listening(void);
 char* recv_cmd(void);
 sh_err send_results(char*);
 sh_err run(void);					// loop to check sockets sets (fd_set)
+void clean_svr(void);
 
 //client.c
 sh_err rconnect(char*,char*);
@@ -61,7 +62,7 @@ char* sh_export(int, char*[]);
 char* sh_help(int, char*[]);
 char* sh_connect(int, char*[]);
 char* sh_rm(int, char*[]);
-
+sh_err chk_vfs(char**);
 
 
 

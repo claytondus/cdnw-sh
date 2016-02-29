@@ -24,6 +24,7 @@ sh_err start_listening(void) {
 	shell_server.clientfd = -1;
 	shell_server.client = CLIENT_STATUS_CLOSE;
 	shell_server.num_fds = 1;
+	shell_server.vfs = VFS_STATUS_OFF;
 
 	shell_client.cfd = -1;
 	shell_client.status = CLIENT_STATUS_CLOSE;
@@ -272,6 +273,17 @@ sh_err run(void) {
 		if(result) free(result);
 
 	}
+	clean_svr();
 	if(!run_err) run_err = shell_server.status;
 	return run_err;
+}
+
+void clean_svr(void) {
+
+	if(shell_client.status == CLIENT_STATUS_OPEN) {
+		rclose();
+
+	}
+	cnumount();
+	blockdev_detach();
 }
