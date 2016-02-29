@@ -12,11 +12,11 @@
 #include <poll.h>
 
 struct svrconf shell_server;
+struct clientconf shell_client;
 
 sh_err start_listening(void) {
 
 	sh_err net_err = SH_ERR_SUCCESS;
-	sh_err detail_err = SH_ERR_SUCCESS;
 
 	shell_server.status = SVR_STATUS_INIT;
 
@@ -25,12 +25,15 @@ sh_err start_listening(void) {
 	shell_server.client = CLIENT_STATUS_CLOSE;
 	shell_server.num_fds = 1;
 
+	shell_client.cfd = -1;
+	shell_client.status = CLIENT_STATUS_CLOSE;
+
 	struct addrinfo hints;
 	struct addrinfo *res;
 	int sockfd;
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET;  		// IPv4
+	hints.ai_family = AF_UNSPEC;  		// IPv4
 	hints.ai_socktype = SOCK_STREAM;	// TCP
 	hints.ai_flags = AI_PASSIVE;     	// fill in IP
 
@@ -42,15 +45,21 @@ sh_err start_listening(void) {
 	if(sockfd>0) {
 		net_err = bind(sockfd, res->ai_addr, res->ai_addrlen);
 		if(net_err<0) {
-			detail_err = errno;
 			net_err = SH_ERR_BINDSOCK;
-			printf("\nErrno: %d\n",detail_err);
+			perror("\nBind");
 		} else {
-			shell_server.svrfd = sockfd;
-			shell_server.num_fds++;
+			net_err = listen(sockfd, 1);
+			if(net_err<0) {
+				net_err = SH_ERR_LISTEN;
+				perror("\nListen");
+			} else {
+				shell_server.svrfd = sockfd;
+				shell_server.num_fds++;
+			}
 		}
 	} else {
 		net_err = SH_ERR_STARTSOCK;
+		perror("\nSocket");
 	}
 
 	shell_server.status = SVR_STATUS_RUN;
@@ -65,7 +74,7 @@ char* recv_cmd(void) {
 	cmdbuffer = malloc(sizeof(char)*SH_MAX_STR);
 	cmdbuffer[0] = '\0';
 
-	size = recv(shell_server.svrfd, cmdbuffer, SH_MAX_STR*sizeof(char), 0);
+	size = recv(shell_server.clientfd, cmdbuffer, SH_MAX_STR*sizeof(char), 0);
 	if(size <= 0) {
 		// handle error
 		cmdbuffer[0] = '\0';
@@ -88,7 +97,7 @@ sh_err send_results(char* resultstr) {
 	while(bytes_remain > 0) {
 		int send_len = result_len > (SVR_MAX_PAYLOAD-1) ? (SVR_MAX_PAYLOAD-1) : result_len;
 
-		bytes_sent = send(shell_server.svrfd,cursor,sizeof(char)*send_len,0);
+		bytes_sent = send(shell_server.clientfd,cursor,sizeof(char)*send_len,0);
 
 		if(bytes_sent > 0) {
 			bytes_remain -= bytes_sent;
@@ -100,6 +109,31 @@ sh_err send_results(char* resultstr) {
 	if(bytes_sent<1) send_err = bytes_sent;
 
 	return send_err;
+}
+
+sh_err accept_client(void) {
+	int clientfd = -1;
+	char str_addr[INET6_ADDRSTRLEN];
+	sh_err cmd_err = SH_ERR_SUCCESS;
+	struct sockaddr_storage client_addr;
+	socklen_t client_socklen = sizeof(struct sockaddr_storage);
+
+	clientfd = accept(shell_server.svrfd, (struct sockaddr *)&client_addr, &client_socklen);
+	if(clientfd>0) {
+		shell_server.client = CLIENT_STATUS_OPEN;
+		shell_server.clientfd = clientfd;
+	    if (client_addr.ss_family == AF_INET) {
+	        inet_ntop(client_addr.ss_family,&(((struct sockaddr_in*)&client_addr)->sin_addr),str_addr, sizeof(str_addr));
+	    } else {
+	        inet_ntop(client_addr.ss_family,&(((struct sockaddr_in6*)&client_addr)->sin6_addr),str_addr, sizeof(str_addr));
+	    }
+		printf("\nClient connected from %s\n",str_addr);
+	} else {
+		cmd_err = clientfd;
+		perror("\nAccept");
+	}
+
+	return cmd_err;
 }
 
 
@@ -121,23 +155,26 @@ sh_err run(void) {
 		pfd_in[0].fd = 0;
 		pfd_in[0].events = POLLIN;
 		pfd_in[0].revents = 0;
+		int num_fds = 1;
 		if(shell_server.svrfd != -1) {
-			pfd_in[1].fd = shell_server.svrfd;
-			pfd_in[1].events = POLLIN;
-			pfd_in[1].revents = 0;
+			pfd_in[num_fds].fd = shell_server.svrfd;
+			pfd_in[num_fds].events = POLLIN;
+			pfd_in[num_fds].revents = 0;
+			num_fds++;
 		} else if(shell_server.clientfd != -1) {
-			pfd_in[1].fd = shell_server.clientfd;
-			pfd_in[1].events = POLLIN;
-			pfd_in[1].revents = 0;
-		}
-		if(shell_server.num_fds == 3) {
-			pfd_in[2].fd = shell_server.clientfd;
-			pfd_in[2].events = POLLIN;
-			pfd_in[2].revents = 0;
+			pfd_in[num_fds].fd = shell_server.clientfd;
+			pfd_in[num_fds].events = POLLIN;
+			pfd_in[num_fds].revents = 0;
+			num_fds++;
+		} else if(shell_client.cfd != -1) {
+			pfd_in[num_fds].fd = shell_client.cfd;
+			pfd_in[num_fds].events = POLLIN;
+			pfd_in[num_fds].revents = 0;
+			num_fds++;
 		}
 
 		sh_err pol_err = poll(pfd_in, shell_server.num_fds, SVR_TIMEOUT_CHKSOCK);
-		if(pol_err<1) {
+		if(pol_err<0) {
 			printf("%s\n",err_str(SH_ERR_SOCKET));
 			perror("Errno");
 			fflush(stdout);
@@ -145,52 +182,71 @@ sh_err run(void) {
 		if(pfd_in[0].revents & POLLIN) {
 			fgets(cmdbuffer,SH_MAX_STR,stdin);
 			//client sending cmd
-			if(shell_server.client == CLIENT_STATUS_OPEN) {
+			if(shell_client.status == CLIENT_STATUS_OPEN) {
 				run_err = send_cmd(cmdbuffer);
 				if(run_err<0) {
 					printf("ERROR: problem with sending command to remote system\n");
 					perror("Errno");
 				}
-				printf("\n%s",str_table[STR_REMOTE_PROMPT]);
+
 			} else {
 			// stdin
 				result = run_cmd(cmdbuffer);
 				if(result) printf("%s",result);
-				printf("\n%s",str_table[STR_PROMPT]);
+
+			}
+			if(shell_server.status == SVR_STATUS_RUN) {
+				if(shell_client.status == CLIENT_STATUS_OPEN) {
+					printf("\n%s",str_table[STR_REMOTE_PROMPT]);
+				} else {
+					printf("\n%s",str_table[STR_PROMPT]);
+				}
 			}
 			fflush(stdout);
 		}
-		if(pfd_in[1].revents & POLLIN) {
-			// remote client sending cmd
-			result = recv_cmd();
-			if(result[0]=='\0') {
-				run_err = result[1];
-				int err_errno = result[2];
-				printf("\n%s",err_str(run_err));
-				printf("\n%s\n",strerror(err_errno));
-			} else {
-				run_err = send_results(run_cmd(result));
+		int i = 1;
+		for(i = 1; i<num_fds; i++) {
+			if(pfd_in[i].revents & POLLIN) {
+				// client asking to open connection
+				if(pfd_in[i].fd == shell_server.svrfd) {
+					run_err = accept_client();
+					if(run_err<0) {
+						printf("\n%s",err_str(run_err));
+						perror("Accept");
+						fflush(stdout);
+					}
+				}
+				// remote client sending cmd
+				if(pfd_in[i].fd == shell_server.clientfd) {
+					result = recv_cmd();
+					if(result[0]=='\0') {
+						run_err = result[1];
+						int err_errno = result[2];
+						printf("\n%s",err_str(run_err));
+						printf("\n%s\n",strerror(err_errno));
+					} else {
+						run_err = send_results(run_cmd(result));
+					}
+					if(run_err<0) {
+						printf("\n%s",err_str(run_err));
+						perror("Recv cmd");
+						fflush(stdout);
+					}
+				}
+				// client receiving cmd results
+				if(pfd_in[i].fd == shell_client.cfd) {
+					result = recv_results();
+					if(result[0]=='\0') {
+						run_err = result[1];
+						int err_errno = result[2];
+						printf("\n%s",err_str(run_err));
+						printf("\n%s\n",strerror(err_errno));
+					} else {
+						printf("%s",result);
+					}
+					fflush(stdout);
+				}
 			}
-			if(run_err<0) {
-				printf("\n%s",err_str(run_err));
-				perror("Errno");
-				fflush(stdout);
-			}
-		}
-		if(pfd_in[2].revents & POLLIN) {
-			// client receiving cmd results
-			result = recv_results();
-			if(result[0]=='\0') {
-				run_err = result[1];
-				int err_errno = result[2];
-				printf("\n%s",err_str(run_err));
-				printf("\n%s\n",strerror(err_errno));
-			} else {
-				printf("%s",result);
-			}
-			fflush(stdin);
-			printf("\n%s",str_table[STR_REMOTE_PROMPT]);
-			fflush(stdout);
 		}
 		if(result) free(result);
 

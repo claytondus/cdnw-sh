@@ -25,9 +25,8 @@ sh_err rconnect(char* server, char* port)
 
 	cmd_err = connect(sockfd, res->ai_addr, res->ai_addrlen);
 	if(cmd_err>=0) {
-		shell_server.clientfd = sockfd;
-		shell_server.client = CLIENT_STATUS_OPEN;
-		shell_server.num_fds += 1;
+		shell_client.cfd = sockfd;
+		shell_client.status = CLIENT_STATUS_OPEN;
 	} else {
 		//error
 		cmd_err = SH_ERR_RCONNECT;
@@ -39,9 +38,8 @@ sh_err rconnect(char* server, char* port)
 
 sh_err rclose(void) {
 	sh_err run_err = close(shell_server.clientfd);
-	shell_server.clientfd = -1;
-	shell_server.client = CLIENT_STATUS_CLOSE;
-	shell_server.num_fds += -1;
+	shell_client.cfd = -1;
+	shell_client.status = CLIENT_STATUS_CLOSE;
 	return run_err;
 }
 
@@ -54,7 +52,7 @@ sh_err send_cmd(char* cmdbuffer) {
 		cmd_len = SH_MAX_STR;
 		//warn about truncated cmd
 	}
-	int bytes_sent = send(shell_server.clientfd,cmdbuffer,sizeof(char)*cmd_len,0);
+	int bytes_sent = send(shell_client.cfd,cmdbuffer,sizeof(char)*cmd_len,0);
 
 	if(bytes_sent<1) send_err = bytes_sent;
 
@@ -68,7 +66,7 @@ char* recv_results(void) {
 	results = malloc(sizeof(char)*SVR_MAX_PAYLOAD);
 	results[0] = '\0';
 
-	size = recv(shell_server.clientfd, results, SVR_MAX_PAYLOAD*sizeof(char), 0);
+	size = recv(shell_client.cfd, results, SVR_MAX_PAYLOAD*sizeof(char), 0);
 	if(size <= 0) {
 		// handle error
 		results[0] = '\0';

@@ -47,6 +47,8 @@ typedef int8_t sh_err;
 #define SH_ERR_BINDSOCK		-14
 #define SH_ERR_RCONNECT		-15
 #define SH_ERR_RCLOSE  		-16
+#define SH_ERR_LISTEN		-17
+
 
 #define SH_CMD_NUM			18
 #define SH_MAX_ARGS			16

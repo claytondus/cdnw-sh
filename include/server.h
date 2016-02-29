@@ -47,6 +47,12 @@ struct svrconf {
 	int num_fds;
 };
 
+struct clientconf {
+	int8_t status;
+	int cfd;
+};
+
 extern struct svrconf shell_server;
+extern struct clientconf shell_client;
 
 #endif /* INCLUDE_SERVER_H_ */

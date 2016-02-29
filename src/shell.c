@@ -27,12 +27,13 @@ const char *err_strings[] = {
 		"ERROR: invalid operation, no virtual file system has been mounted\0",
 		"ERROR: invalid parameters, unable to run this command\0",
 		"ERROR: command not found\0",
-		"ERROR: socket - unable to run select()\0",
+		"ERROR: socket - unable to run poll()\0",
 		"ERROR: unable to receive command, network error on recv()\0",
 		"ERROR: unable to allocate network socket\0",
 		"ERROR: unable to bind to socket\0",
 		"ERROR: problem connecting to server \0",
-		"ERROR: problem disconnecting from server, assuming connection closed \0"
+		"ERROR: problem disconnecting from server, assuming connection closed \0",
+		"ERROR: problem listening on the bound port \0"
 };
 
 struct cmd_entry sh_cmds[] = {
@@ -81,7 +82,7 @@ char* run_cmd(char *cmdstr) {
 			if(cmd_tok) {
 				cmd_argv[cmd_argc] = malloc(sizeof(char)*(i-last_stop));
 				strncpy(cmd_argv[cmd_argc],cmdstr+last_stop+1,(i-last_stop-1));
-				(cmd_argv[cmd_argc])[i-last_stop] = '\0';
+				(cmd_argv[cmd_argc])[i-last_stop-1] = '\0';
 
 				cmd_argc++;
 			} else {
@@ -98,10 +99,14 @@ char* run_cmd(char *cmdstr) {
 	}
 
 	if(cmd_tok && cmd_tok[0] && strncmp(cmd_tok,"\n",1) && strncmp(cmd_tok,"\r",1) && strncmp(cmd_tok," ",1)) {
-		int i;
+		int i,j;
 		for(i=0; i<SH_CMD_NUM; i++) {
 			if(!strcmp(cmd_tok,sh_cmds[i].name)) {
 				result = sh_cmds[i].sh_cmd(cmd_argc, cmd_argv);
+				free(cmd_tok);
+				for(j=0;j<cmd_argc;j++) {
+					free(cmd_argv[j]);
+				}
 				break;
 			}
 		}
@@ -121,7 +126,7 @@ char* sh_exit(int cmd_argc, char* cmd_argv[]) {
 	sh_err cmd_err = SH_ERR_SUCCESS;
 	(void)(cmd_argc);
 	(void)(cmd_argv);
-	if(shell_server.client == CLIENT_STATUS_OPEN) {
+	if(shell_client.status == CLIENT_STATUS_OPEN) {
 		cmd_err = rclose();
 		if(cmd_err<0) {
 			char* str_errno = strerror(errno);
