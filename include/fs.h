@@ -13,6 +13,7 @@
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/param.h>
 #include "fsparams.h"
 #include "inode.h"
 #include "block.h"
@@ -45,12 +46,14 @@ int8_t cnseek(int16_t, int32_t);
 int8_t cnclose(int16_t);
 int8_t cnmkdir(const char*);
 int8_t cnrmdir(char*);
-int8_t cncd(char*);
+int8_t cncd(const char*);
+int8_t cnpwd(char*);
 char* cnls(void);
 char* cncat(char*);
 char* cntree(void);
 int8_t cnimport(char*,char*);
 int8_t cnexport(char*,char*);
+
 
 
 #endif /* INCLUDE_FS_H_ */

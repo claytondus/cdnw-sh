@@ -25,7 +25,7 @@ typedef struct {
 
 typedef struct {
 	inode inode_st;
-	iptr inode;
+	iptr inode_id;
 	uint32_t index;
 	block* data;
 } dir_ptr;
@@ -59,6 +59,16 @@ typedef struct {
 
 } vfs;
 
+
+
+
+//********Private*****************
+dir_ptr* cnopendir(const char* name);
+void cnclosedir(dir_ptr* dir);
+dir_entry* cnreaddir(dir_ptr* dir);
+
+
+
 //********FS state and cache********
 
 vfs fs;
@@ -68,8 +78,8 @@ block inode_bm_cache;
 
 fd_entry fd_tbl[MAX_FD];
 
-iptr cwd_iptr;
 char cwd_str[4096];
+dir_ptr* cwd;
 
 
 //************flush_metadata************
@@ -144,12 +154,15 @@ int8_t cnmount(void)
 		fs.state = VFS_BLANK;
 	}
 	memset(fd_tbl, 0, sizeof(fd_entry)*1024);
+	strcpy(cwd_str,"/");
+	cwd = cnopendir("/");
 	return 0;
 }
 
 //*****************umount****************
 int8_t cnumount(void)
 {
+	cnclosedir(cwd);
 	fs.superblk->state = VALID_FS;
 	blk_write(BLOCKID_SUPER, &superblk_cache);
 	blk_write(BLOCKID_BLOCK_BITMAP, &block_bm_cache);
@@ -162,7 +175,7 @@ int8_t cnumount(void)
 //*****************mkfs****************
 void superblock_init(void)
 {
-	superblock *sb = malloc(sizeof(block));
+	superblock *sb = calloc(1,sizeof(block));
 	memset(sb, 0, sizeof(block));
 	sb->inode_count = INODE_COUNT;
 	sb->block_count = BD_SIZE_BLOCKS;
@@ -176,8 +189,7 @@ void superblock_init(void)
 
 void block_bitmap_init(void)
 {
-	block *block_btm = malloc(sizeof(block));
-	memset(block_btm, 0, sizeof(block));
+	block *block_btm = calloc(1,sizeof(block));
 
 	//Mark all reserved blocks as used
 	set_bitmap(block_btm, BLOCKID_SUPER);
@@ -198,8 +210,7 @@ void block_bitmap_init(void)
 
 void inode_bitmap_init(void)
 {
-	block *inode_btm = malloc(sizeof(block));
-	memset(inode_btm, 0, sizeof(block));
+	block *inode_btm = calloc(1,sizeof(block));
 
 	//Mark first inode as used
 	set_bitmap(inode_btm, 0);
@@ -220,7 +231,7 @@ void write_root_dir(void)
 	root_i.blocks = 1;
 	root_i.data0[0] = BLOCKID_ROOT_DIR;
 
-	block* root_dir_block = malloc(sizeof(block));
+	block* root_dir_block = calloc(1,sizeof(block));
 
 	// . (self entry)
 	dir_entry* root_dir_entry = (dir_entry*)root_dir_block;
@@ -309,49 +320,83 @@ dir_entry* cnreaddir(dir_ptr* dir)
 	return entry;
 }
 
-//******** opendir ******************
-dir_ptr* cnopendir(char* name)
+//******** rewinddir *****************
+void cnrewinddir(dir_ptr* dir)
 {
-	dir_ptr *dir = malloc(sizeof(dir_ptr));		//Directory file in memory (e.g. DIR object from filedef.h)
+	dir->index = 0;
+}
+
+//******** inflatedir *****************
+//Populates a dir_ptr from an iptr
+void inflatedir(dir_ptr* dir, iptr inode_id)
+{
+	inode_read(inode_id,&dir->inode_st);
+	dir->inode_id = inode_id;
+	//Read the directory file for this inode
+	dir->data = calloc(dir->inode_st.blocks, sizeof(block));  	//Memory for all directory file blocks
+	llread(&dir->inode_st, dir->data);	//Read the directory file
+	dir->index = 0;
+}
+
+
+//******** opendir ******************
+dir_ptr* cnopendir(const char* name)
+{
+	char* name_copy = strdup(name);
+	char* name_tok;
+	char entry_name[256];
+	iptr loaded_inode = INODE_COUNT + 1;		//Invalid sentinel
+	dir_entry* entry;
+	dir_ptr *dir = calloc(1,sizeof(dir_ptr));	//Directory file in memory (e.g. DIR object from filedef.h)
 
 	if(memcmp(name,"/",1) == 0)					//Is this path absolute or relative
 	{
-		inode_read(INODE_ROOTDIR, &dir->inode_st);   //Start at the root dir
-		dir->inode = INODE_ROOTDIR;
+		//Start at the root dir
+		inflatedir(dir, INODE_ROOTDIR);
 	}
 	else
 	{
-		inode_read(cwd_iptr, &dir->inode_st);		//Start at cwd
-		dir->inode = cwd_iptr;
+		//Start at cwd
+		inflatedir(dir, cwd->inode_id);
 	}
 
-	char* name_tok = strtok(name, "/");
-	dir_entry* entry;
+	if(strcmp(name,"/") == 0)  //Root is a special case, we are done now
+	{
+		goto done;
+	}
+
+	name_tok = strtok(name_copy, "/");   //Guaranteed not to return NULL
 	do
 	{
-		//Read the directory file for this inode
-		dir->data = malloc(sizeof(block)*(dir->inode_st.blocks));  	//Memory for all directory file blocks
-		llread(&dir->inode_st, dir->data);	//Read the directory file
-		dir->index = 0;
-
-		name_tok = strtok(NULL, "/");		//Read the next token
-		if(name_tok == NULL)   //This is the last directory in the path
-		{
-			return dir;		   //Path was traversed, return the dir_ptr
-		}
-
 		//Find the token in this dir
 		while((entry = cnreaddir(dir)))
 		{
-			if(memcmp(entry->name, name_tok, entry->name_len) == 0)  //If this is the directory we want
+			//Copy entry name to a null-term string to compare it
+			memcpy(entry_name, entry->name, entry->name_len);
+			entry_name[entry->name_len] = 0;
+			if(strcmp(entry_name, name_tok) == 0)  //If this is the directory we want
 			{
-				inode_read(entry->inode,&dir->inode_st);   //Read the next directory's inode
-				free(dir->data);  //Forget the directory we just read
+				loaded_inode = entry->inode;
+				dir_ptr* new_dir = calloc(1, sizeof(dir_ptr));
+				inflatedir(new_dir, entry->inode);
+				cnclosedir(dir);  //Forget the directory we already read
+				dir = new_dir;
 				break;
 			}
 		}
-		return NULL; //Could not find name here
-	} while(1);
+		if(dir->inode_id != loaded_inode) //Could not find name in dir
+		{
+			dir = NULL;
+			break;
+		}
+
+		name_tok = strtok(NULL, "/");		//Read the next token
+
+	} while(name_tok != NULL);
+
+	done:
+	free(name_copy);
+	return dir;
 }
 
 
@@ -365,29 +410,49 @@ void cnclosedir(dir_ptr* dir)
 	free(dir);
 }
 
+//******** closedir *****************
+int8_t cncd(const char* name)
+{
+	dir_ptr* new_cwd = cnopendir(name);
+	if(new_cwd == NULL)
+	{
+		return -1;
+	}
+	strcpy(cwd_str,name);
+	cnclosedir(cwd);
+	cwd = new_cwd;
+	return 0;
+}
+
+//******** pwd **********************
+int8_t cnpwd(char* buf)
+{
+	strcpy(buf,cwd_str);
+	return 0;
+}
 
 //******** mkdir ********************
-int8_t cnmkdir(const char* name) {
-
+int8_t cnmkdir(const char* name)
+{
 	char* name_copy = strdup(name);
 	char name_tok[256];
 	char entry_name[256];
 	char* next_name_tok;
-	dir_ptr *dir = malloc(sizeof(dir_ptr));		//Directory file in memory (e.g. DIR object from filedef.h)
+	dir_entry* entry;
+	dir_ptr *dir = calloc(1,sizeof(dir_ptr));		//Directory file in memory (e.g. DIR object from filedef.h)
 	bool last_dir = false;
 
-	inode_read(cwd_iptr, &dir->inode_st);		//Start at cwd
-	dir->inode = 0;
+	inode_read(cwd->inode_id, &dir->inode_st);		//Start at cwd
+	dir->inode_id = cwd->inode_id;
 
 	next_name_tok = strtok(name_copy, "/");
-	dir_entry* entry;
 	do
 	{
 		//name_tok is the dir we are searching for or going to create
 		strcpy(name_tok, next_name_tok);
 
 		//Read the directory file for this inode
-		dir->data = malloc(sizeof(block)*(dir->inode_st.blocks));  	//Memory for all directory file blocks
+		dir->data = calloc(dir->inode_st.blocks,sizeof(block));  	//Memory for all directory file blocks
 		llread(&dir->inode_st, dir->data);	//Read the directory file
 		dir->index = 0;
 
@@ -410,7 +475,7 @@ int8_t cnmkdir(const char* name) {
 				}
 				else   //Read the directory inode
 				{
-					dir->inode = entry->inode;
+					dir->inode_id = entry->inode;
 					inode_read(entry->inode,&dir->inode_st);   //Read the next directory's inode
 					free(dir->data);  //Forget the directory we just read
 					break;
@@ -432,7 +497,7 @@ int8_t cnmkdir(const char* name) {
 			//TODO: handle mkdir block overflow
 
 			//Write parent dir and inode
-			inode_write(dir->inode, &dir->inode_st);
+			inode_write(dir->inode_id, &dir->inode_st);
 			blk_write(dir->inode_st.data0[0], dir->data);
 
 			//Write new directory inode
@@ -446,8 +511,7 @@ int8_t cnmkdir(const char* name) {
 			new_dir_i.data0[0] = reserve_block();
 
 			//Write new directory file
-			block* new_dir_block = malloc(sizeof(block));
-			memset(new_dir_block, 0, sizeof(block));
+			block* new_dir_block = calloc(1,sizeof(block));
 
 			// . (self entry)
 			dir_entry* new_dir_self_entry = (dir_entry*)new_dir_block;
@@ -459,12 +523,12 @@ int8_t cnmkdir(const char* name) {
 			new_dir_i.size += 12;
 
 			// .. (parent entry)
-			new_dir_self_entry = (dir_entry*)(((char*)new_dir_block) + 12);
-			new_dir_self_entry->inode = dir->inode;
-			new_dir_self_entry->file_type = ITYPE_DIR;
-			new_dir_self_entry->name_len = 2;
-			new_dir_self_entry->entry_len = 12;
-			memcpy(new_dir_self_entry->name, "..", 2);
+			dir_entry* new_dir_parent_entry = (dir_entry*)(((char*)new_dir_block) + 12);
+			new_dir_parent_entry->inode = dir->inode_id;
+			new_dir_parent_entry->file_type = ITYPE_DIR;
+			new_dir_parent_entry->name_len = 2;
+			new_dir_parent_entry->entry_len = 12;
+			memcpy(new_dir_parent_entry->name, "..", 2);
 			new_dir_i.size += 12;
 
 			//Write new dir and inode
