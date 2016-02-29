@@ -96,3 +96,33 @@ TEST(fs, CdShouldComplete)
 	cnumount();
 }
 
+TEST(fs, LsShouldComplete)
+{
+	cnmkfs();
+	cnmount();
+	int8_t result;
+	result = cnmkdir("test1");
+	result = cncd("test1");
+	result = cnmkdir("test2");
+	char lsbuf[4096];
+	result = cnls("",lsbuf);
+	debug("ls:\n%s\n", lsbuf);
+	TEST_ASSERT_EQUAL_INT8(result, 0);
+	char lsbuf2[4096];
+	result = cnls("/",lsbuf2);
+	debug("ls /:\n%s\n", lsbuf2);
+	TEST_ASSERT_EQUAL_INT8(result, 0);
+	char lsbuf3[4096];
+	result = cnls("/test1",lsbuf3);
+	debug("ls /test1:\n%s\n", lsbuf3);
+	TEST_ASSERT_EQUAL_INT8(result, 0);
+	char lsbuf4[4096];
+	result = cnls("..",lsbuf4);
+	debug("ls ..:\n%s\n", lsbuf4);
+	TEST_ASSERT_EQUAL_INT8(result, 0);
+	char lsbuf5[4096];
+	result = cnls("test3",lsbuf5);
+	debug("ls test3 (SHOULD FAIL):\n%s\n", lsbuf5);
+	TEST_ASSERT_EQUAL_INT8(result, -1);
+}
+

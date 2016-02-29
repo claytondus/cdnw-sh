@@ -384,19 +384,19 @@ dir_ptr* cnopendir(const char* name)
 				break;
 			}
 		}
-		if(dir->inode_id != loaded_inode) //Could not find name in dir
-		{
-			dir = NULL;
-			break;
-		}
+		check(dir->inode_id == loaded_inode, "can not find directory %s", name_copy);
 
 		name_tok = strtok(NULL, "/");		//Read the next token
 
 	} while(name_tok != NULL);
 
-	done:
+done:
 	free(name_copy);
 	return dir;
+
+error:
+	free(dir);
+	return NULL;
 }
 
 
@@ -410,18 +410,17 @@ void cnclosedir(dir_ptr* dir)
 	free(dir);
 }
 
-//******** closedir *****************
+//******** cd ************************
 int8_t cncd(const char* name)
 {
 	dir_ptr* new_cwd = cnopendir(name);
-	if(new_cwd == NULL)
-	{
-		return -1;
-	}
+	check(new_cwd != NULL, "directory %s does not exist", name);
 	strcpy(cwd_str,name);
 	cnclosedir(cwd);
 	cwd = new_cwd;
 	return 0;
+error:
+	return -1;
 }
 
 //******** pwd **********************
@@ -543,6 +542,31 @@ int8_t cnmkdir(const char* name)
 	free(dir);
 	free(name_copy);
 	return 0;
+}
+
+//******** ls ***********************
+int8_t cnls(const char* name, char* buf)
+{
+	char name_copy[256];
+	if(strlen(name) == 0)
+	{
+		strcpy(name_copy, ".");
+	}
+	else
+	{
+		strcpy(name_copy, name);
+	}
+	dir_entry* entry;
+	dir_ptr* dir = cnopendir(name_copy);
+	check(dir !=NULL, "can not ls directory %s", name);
+	while((entry = cnreaddir(dir)))
+	{
+		strncat(buf, entry->name, entry->name_len);
+		strcat(buf, "\n");
+	}
+	return 0;
+error:
+	return -1;
 }
 
 //******** stat *********************

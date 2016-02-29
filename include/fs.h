@@ -48,7 +48,7 @@ int8_t cnmkdir(const char*);
 int8_t cnrmdir(char*);
 int8_t cncd(const char*);
 int8_t cnpwd(char*);
-char* cnls(void);
+int8_t cnls(const char *, char*);
 char* cncat(char*);
 char* cntree(void);
 int8_t cnimport(char*,char*);
