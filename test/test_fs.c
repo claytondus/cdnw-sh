@@ -210,3 +210,23 @@ TEST(fs, RmdirShouldComplete)
 	TEST_ASSERT_EQUAL_INT8(0, result);
 	cnumount();
 }
+
+TEST(fs, CatShouldComplete)
+{
+	cnmkfs();
+	cnmkfs();
+	cnmount();
+	dir_ptr* dir = cnopendir(".");
+	int16_t fd1 = cnopen(dir, "file1.txt", FD_WRITE);
+	size_t bytes_written = cnwrite((uint8_t*)"This is only a test.\r\n\r\n", 24, fd1);
+	cnwrite((uint8_t*)"This is also a test.\r\n\r\n\r\n",26,fd1);
+	TEST_ASSERT_TRUE(24 == bytes_written);
+	cnclose(fd1);
+	char catbuf[512];
+	memset(catbuf, 0, 512);
+	int8_t result = cncat("file1.txt",catbuf);
+	debug("%s",catbuf);
+	system("hd /tmp/fs.bin");
+	TEST_ASSERT_EQUAL_INT8(0, result);
+	cnumount();
+}

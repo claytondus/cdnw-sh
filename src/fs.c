@@ -632,10 +632,14 @@ int8_t cnrmdir(const char* name)
 	inode_write(new_parent->inode_id, &new_parent->inode_st);
 	llwrite(&new_parent->inode_st, new_parent->data);
 
-
-
+	free(new_parent->data);
+	free(new_parent);
+	cnclosedir(parent);
 	return 0;
 error:
+	if(new_parent != NULL && new_parent->data != NULL) free(new_parent->data);
+	if(new_parent != NULL) free(new_parent);
+	if(parent != NULL) cnclosedir(parent);
 	return -1;
 }
 
@@ -856,3 +860,21 @@ error:
 	return 0;
 }
 
+//****** cncat *********************
+int8_t cncat(const char* name, char* buf)
+{
+	stat_st filestat;
+	dir_ptr* dir = cnopendir(".");
+
+	check(cnstat(dir, name, &filestat) == 0, "Can not stat file");
+	inode file_i;
+	inode_read(filestat.inode_id, &file_i);
+
+	int8_t fd = cnopen(dir,name,FD_READ);
+	check(fd >= 0, "Can not open file");
+	cnread((uint8_t*)buf, file_i.size, fd);
+	return 0;
+error:
+	cnclosedir(dir);
+	return -1;
+}
