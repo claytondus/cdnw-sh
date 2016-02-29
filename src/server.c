@@ -147,7 +147,7 @@ sh_err run(void) {
 	printf("%s",str_table[STR_PROMPT]);
 	fflush(stdout);
 
-	struct pollfd pfd_in[3];
+	struct pollfd pfd_in[4];
 
 	while(shell_server.status == SVR_STATUS_RUN) {
 
@@ -161,12 +161,14 @@ sh_err run(void) {
 			pfd_in[num_fds].events = POLLIN;
 			pfd_in[num_fds].revents = 0;
 			num_fds++;
-		} else if(shell_server.clientfd != -1) {
+		}
+		if(shell_server.clientfd != -1) {
 			pfd_in[num_fds].fd = shell_server.clientfd;
 			pfd_in[num_fds].events = POLLIN;
 			pfd_in[num_fds].revents = 0;
 			num_fds++;
-		} else if(shell_client.cfd != -1) {
+		}
+		if(shell_client.cfd != -1) {
 			pfd_in[num_fds].fd = shell_client.cfd;
 			pfd_in[num_fds].events = POLLIN;
 			pfd_in[num_fds].revents = 0;
@@ -201,6 +203,8 @@ sh_err run(void) {
 				} else {
 					printf("\n%s",str_table[STR_PROMPT]);
 				}
+			} else {
+				printf("\n\n");
 			}
 			fflush(stdout);
 		}
