@@ -371,17 +371,21 @@ int8_t cnmkdir(const char* name) {
 
 	char* name_copy = strdup(name);
 	char name_tok[256];
+	char entry_name[256];
 	char* next_name_tok;
 	dir_ptr *dir = malloc(sizeof(dir_ptr));		//Directory file in memory (e.g. DIR object from filedef.h)
 	bool last_dir = false;
 
 	inode_read(cwd_iptr, &dir->inode_st);		//Start at cwd
+	dir->inode = 0;
 
 	next_name_tok = strtok(name_copy, "/");
-	strcpy(name_tok, next_name_tok);
 	dir_entry* entry;
 	do
 	{
+		//name_tok is the dir we are searching for or going to create
+		strcpy(name_tok, next_name_tok);
+
 		//Read the directory file for this inode
 		dir->data = malloc(sizeof(block)*(dir->inode_st.blocks));  	//Memory for all directory file blocks
 		llread(&dir->inode_st, dir->data);	//Read the directory file
@@ -396,7 +400,9 @@ int8_t cnmkdir(const char* name) {
 		//Find the token in this dir
 		while((entry = cnreaddir(dir)))
 		{
-			if(memcmp(entry->name, name_tok, entry->name_len) == 0)  //If this directory already exists
+			memcpy(entry_name, entry->name, entry->name_len);
+			entry_name[entry->name_len] = 0;
+			if(strcmp(entry_name, name_tok) == 0)  //If this directory already exists
 			{
 				if(last_dir)
 				{
