@@ -120,6 +120,55 @@ void release_block(iptr blockid)
 	flush_metadata();
 }
 
+//****** realloc_cache*****************
+//Allocates at least "blocks_needed" blocks for this data cache
+int8_t realloc_cache(fd_entry* fde, uint32_t blocks_needed)
+{
+	block* new_data = calloc(blocks_needed, sizeof(block));
+	check(new_data != NULL, "Could not realloc data cache");
+	if(fde->data != NULL) {
+		memcpy(new_data, fde->data, fde->inode.size);
+		free(fde->data);
+	}
+	fde->data = new_data;
+	return 0;
+error:
+	return -1;
+}
+
+
+//****** realloc_fs_blocks*****************
+//Allocates at least "blocks_needed" blocks for this file
+int8_t realloc_fs_blocks(inode* inode, uint32_t blocks_needed)
+{
+	if(blocks_needed > inode->blocks)
+	{
+		if(blocks_needed <= 8)
+		{
+			for(; inode->blocks < blocks_needed; inode->blocks++)
+			{
+				inode->data0[inode->blocks] = reserve_block();
+			}
+		}
+		else
+		{
+			//TODO: Handle allocation of indirect blocks
+		}
+	}
+	return 0;
+}
+
+//****** free_fs_blocks *****************
+//Frees all blocks in a inode
+/*
+int8_t free_fs_blocks(inode* inode)
+{
+	(void*)inode;
+	return 0;
+error:
+	return -1;
+}*/
+
 //*****************mount****************
 int8_t cnmount(void)
 {
@@ -658,7 +707,7 @@ error:
 //******** end open *****************
 
 
-////******** cnclose *********************
+//******** cnclose *********************
 int8_t cnclose(int16_t fd)
 {
 	if(fd_tbl[fd].state == FD_FREE)
@@ -672,4 +721,50 @@ int8_t cnclose(int16_t fd)
 	clear_bitmap((block*)fd_bm, fd);
 	fd_tbl[fd].state = FD_FREE;
 	return 0;
+}
+
+//******** cnread ********************
+size_t cnread(uint8_t* buf, size_t bytes, int16_t fd)
+{
+	size_t bytes_to_read;
+	fd_entry* fde = &fd_tbl[fd];
+	if(bytes > (fde->inode.size - fde->cursor))
+	{
+		bytes_to_read = fde->inode.size - fde->cursor;
+	}
+	else
+	{
+		bytes_to_read = bytes;
+	}
+	memcpy(buf, fde->data, bytes_to_read);
+	fde->cursor += bytes_to_read;
+	return bytes_to_read;
+}
+
+
+//****** cnseek **********************
+int8_t cnseek(int16_t fd, uint32_t offset)
+{
+	fd_entry* fde = &fd_tbl[fd];
+	uint32_t required_size = fde->cursor + offset + 1;
+	if(fde->inode.size < required_size)   //The data cache and block size may have to be expanded
+	{
+		//Compute new sizes
+		uint32_t required_blocks = (required_size / BLOCK_SIZE) + 1;
+
+		//Allocate new data cache
+		realloc_cache(fde, required_blocks);
+		fde->inode.size = required_size;
+
+		//Allocate fs blocks
+		if(fde->inode.blocks < required_blocks)
+		{
+			check(realloc_fs_blocks(&fde->inode, required_blocks) == 0, "Could not allocate fs blocks");
+		}
+
+	}
+	fde->cursor = fde->cursor + offset;
+	return 0;
+error:
+	return -1;
 }

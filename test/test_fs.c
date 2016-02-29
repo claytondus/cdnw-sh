@@ -159,3 +159,15 @@ TEST(fs, OpenShouldComplete)
 	TEST_ASSERT_EQUAL_INT16(result4, 0);
 	cnumount();
 }
+
+TEST(fs, SeekShouldComplete)
+{
+	cnmkfs();
+	cnmount();
+	dir_ptr* dir = cnopendir("");
+	int16_t fd1 = cnopen(dir, "file1.txt", FD_WRITE);
+	int8_t result = cnseek(fd1, 10000);
+	system("hd /tmp/fs.bin");
+	TEST_ASSERT_EQUAL_INT16(result, 0);
+	cnumount();
+}
