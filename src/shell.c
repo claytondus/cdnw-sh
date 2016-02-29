@@ -33,7 +33,8 @@ const char *err_strings[] = {
 		"ERROR: unable to bind to socket\0",
 		"ERROR: problem connecting to server \0",
 		"ERROR: problem disconnecting from server, assuming connection closed \0",
-		"ERROR: problem listening on the bound port \0"
+		"ERROR: problem listening on the bound port \0",
+		"ERROR: unable to receive results, network error on recv()\0"
 };
 
 struct cmd_entry sh_cmds[] = {

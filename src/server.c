@@ -75,7 +75,7 @@ char* recv_cmd(void) {
 	cmdbuffer[0] = '\0';
 
 	size = recv(shell_server.clientfd, cmdbuffer, SH_MAX_STR*sizeof(char), 0);
-	if(size <= 0) {
+	if(size < 0) {
 		// handle error
 		cmdbuffer[0] = '\0';
 		cmdbuffer[1] = SH_ERR_RECV;
@@ -151,6 +151,7 @@ sh_err run(void) {
 
 	while(shell_server.status == SVR_STATUS_RUN) {
 
+		memset(pfd_in, 0 , sizeof(pfd_in));
 		result = NULL;
 		pfd_in[0].fd = 0;
 		pfd_in[0].events = POLLIN;
@@ -175,7 +176,7 @@ sh_err run(void) {
 			num_fds++;
 		}
 
-		sh_err pol_err = poll(pfd_in, shell_server.num_fds, SVR_TIMEOUT_CHKSOCK);
+		sh_err pol_err = poll(pfd_in, num_fds, SVR_TIMEOUT_CHKSOCK);
 		if(pol_err<0) {
 			printf("%s\n",err_str(SH_ERR_SOCKET));
 			perror("Errno");
@@ -189,6 +190,10 @@ sh_err run(void) {
 				if(run_err<0) {
 					printf("ERROR: problem with sending command to remote system\n");
 					perror("Errno");
+				}
+				if(!strncmp(cmdbuffer,"exit",4)) {
+					result = run_cmd(cmdbuffer);
+					if(result) printf("%s",result);
 				}
 
 			} else {
@@ -228,8 +233,19 @@ sh_err run(void) {
 						int err_errno = result[2];
 						printf("\n%s",err_str(run_err));
 						printf("\n%s\n",strerror(err_errno));
+					} else if((strlen(result)>=4) && (!strncmp(result,"exit",4))) {
+
+						run_err = close(shell_server.clientfd);
+						shell_server.clientfd = -1;
+						shell_server.client = CLIENT_STATUS_CLOSE;
+
 					} else {
-						run_err = send_results(run_cmd(result));
+						char *sendback = run_cmd(result);
+						if(sendback) {
+							run_err = send_results(sendback);
+							free(sendback);
+						}
+
 					}
 					if(run_err<0) {
 						printf("\n%s",err_str(run_err));
@@ -246,7 +262,8 @@ sh_err run(void) {
 						printf("\n%s",err_str(run_err));
 						printf("\n%s\n",strerror(err_errno));
 					} else {
-						printf("%s",result);
+						printf("\n%s",result);
+						printf("\n%s",str_table[STR_REMOTE_PROMPT]);
 					}
 					fflush(stdout);
 				}

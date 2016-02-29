@@ -37,7 +37,7 @@ sh_err rconnect(char* server, char* port)
 }
 
 sh_err rclose(void) {
-	sh_err run_err = close(shell_server.clientfd);
+	sh_err run_err = close(shell_client.cfd);
 	shell_client.cfd = -1;
 	shell_client.status = CLIENT_STATUS_CLOSE;
 	return run_err;
@@ -67,7 +67,7 @@ char* recv_results(void) {
 	results[0] = '\0';
 
 	size = recv(shell_client.cfd, results, SVR_MAX_PAYLOAD*sizeof(char), 0);
-	if(size <= 0) {
+	if(size < 0) {
 		// handle error
 		results[0] = '\0';
 		results[1] = SH_ERR_RECV;
