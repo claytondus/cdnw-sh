@@ -214,7 +214,6 @@ TEST(fs, RmdirShouldComplete)
 TEST(fs, CatShouldComplete)
 {
 	cnmkfs();
-	cnmkfs();
 	cnmount();
 	dir_ptr* dir = cnopendir(".");
 	int16_t fd1 = cnopen(dir, "file1.txt", FD_WRITE);
@@ -229,4 +228,18 @@ TEST(fs, CatShouldComplete)
 	system("hd /tmp/fs.bin");
 	TEST_ASSERT_EQUAL_INT8(0, result);
 	cnumount();
+}
+
+TEST(fs, ImportExportShouldComplete)
+{
+	cnmkfs();
+	cnmount();
+	int8_t result = cnimport("./test/test_fs.c","test_fs.c");
+	char catbuf[8192];
+	cncat("test_fs.c",catbuf);
+	//debug("%s",catbuf);
+	//system("hd /tmp/fs.bin");
+	TEST_ASSERT_EQUAL_INT8(0, result);
+	result = cnexport("test_fs.c","./test_fs_copy.c");
+	TEST_ASSERT_EQUAL_INT8(0, result);
 }

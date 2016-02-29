@@ -808,7 +808,7 @@ size_t cnread(uint8_t* buf, size_t bytes, int16_t fd)
 int8_t cnseek(int16_t fd, uint32_t offset)
 {
 	fd_entry* fde = &fd_tbl[fd];
-	uint32_t required_size = fde->cursor + offset + 1;
+	uint32_t required_size = fde->cursor + offset;
 	if(fde->inode.size < required_size)   //The data cache may have to be expanded
 	{
 		//Compute new sizes
@@ -831,7 +831,7 @@ size_t cnwrite(uint8_t* buf, size_t bytes, int16_t fd)
 {
 	fd_entry* fde = &fd_tbl[fd];
 
-	uint32_t required_size = fde->cursor + bytes + 1;
+	uint32_t required_size = fde->cursor + bytes;
 	if(fde->inode.size < required_size)   //The data cache and block size may have to be expanded
 	{
 		//Compute new sizes
@@ -876,5 +876,102 @@ int8_t cncat(const char* name, char* buf)
 	return 0;
 error:
 	cnclosedir(dir);
+	return -1;
+}
+
+//****** cnimport ****************
+int8_t cnimport(const char* h_name, const char* g_name)
+{
+	FILE* h_file;
+	size_t h_size;
+	char* buf;
+	size_t result;
+	int16_t g_file;
+
+	h_file = fopen(h_name, "rb");
+	check(h_file != NULL, "Can not open host file");
+
+	//get file size
+	fseek(h_file, 0, SEEK_END);
+	h_size = ftell(h_file);
+	rewind(h_file);
+
+	dir_ptr* cwd = cnopendir(".");
+	check(cncreat(cwd, g_name) == 0, "Cannot creat guest file");
+	g_file = cnopen(cwd, g_name, FD_WRITE);
+	check(g_file >= 0, "Cannot open guest file for writing");
+
+	//buffer for whole file
+	buf = calloc(h_size, sizeof(char));
+
+	//load file
+	result = fread(buf,1,h_size,h_file);
+	check(result == (size_t)h_size, "Error reading from host file");
+
+	//write the buffer to the guest
+	result = cnwrite((uint8_t*)buf, h_size, g_file);
+	check(result > 0, "Error writing to guest file");
+
+	//close guest resources
+	cnclose(g_file);
+	cnclosedir(cwd);
+	fclose(h_file);
+	free(buf);
+	return 0;
+error:
+	//close guest resources
+	cnclose(g_file);
+	cnclosedir(cwd);
+	fclose(h_file);
+	free(buf);
+	return -1;
+}
+
+
+//****** cnexport ****************
+int8_t cnexport(const char* g_name, const char* h_name)
+{
+	FILE* h_file;
+	size_t h_size;
+	char* buf;
+	size_t result;
+	int16_t g_file;
+	stat_st statbuf;
+
+	h_file = fopen(h_name, "wb");
+	check(h_file != NULL, "Can not open host file");
+
+	dir_ptr* cwd = cnopendir(".");
+	g_file = cnopen(cwd, g_name, FD_READ);
+	check(g_file >= 0, "Cannot open guest file for reading");
+
+	check(cnstat(cwd, g_name, &statbuf) == 0, "Cannot stat guest file");
+	inode g_inode;
+	inode_read(statbuf.inode_id, &g_inode);
+	h_size = g_inode.size;
+
+	//buffer for whole file
+	buf = calloc(h_size, sizeof(char));
+
+	//load file
+	result = cnread((uint8_t*)buf, h_size, g_file);
+	check(result == h_size, "Error reading from guest file");
+
+	//write the buffer to the host
+	result = fwrite(buf, sizeof(char), h_size, h_file);
+	check(result > 0, "Error writing to host file");
+
+	//close guest resources
+	cnclose(g_file);
+	cnclosedir(cwd);
+	fclose(h_file);
+	free(buf);
+	return 0;
+error:
+	//close guest resources
+	cnclose(g_file);
+	cnclosedir(cwd);
+	fclose(h_file);
+	free(buf);
 	return -1;
 }
