@@ -229,15 +229,21 @@ char* sh_open(int cmd_argc, char* cmd_argv[]) {
 char* sh_close(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
-	(void)(cmd_argc);
-	(void)(cmd_argv);
-	if(cmd_err<0) {
-		// error
-		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
-		strcpy(result, err_str(SH_ERR_UNK));
+
+	if(cmd_argc != 1) {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_CLOSE].help)+2));
+		strcpy(result, sh_cmds[SH_CMD_CLOSE].help);
 	} else {
-		result = malloc(sizeof(char)*(strlen("Virtual file system loaded.")+2));
-		strcpy(result, "Virtual file system loaded.");
+		int16_t f_fd = (int16_t)strtol(cmd_argv[0],(char **)NULL, 10);
+		cmd_err = cnclose(f_fd);
+		if(cmd_err<0) {
+			// error
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+			strcpy(result, err_str(SH_ERR_UNK));
+		} else {
+			result = malloc(sizeof(char)*(strlen("File closed.")+2));
+			strcpy(result, "File closed.");
+		}
 	}
 	return result;
 }
@@ -245,15 +251,24 @@ char* sh_close(int cmd_argc, char* cmd_argv[]) {
 char* sh_read(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
-	(void)(cmd_argc);
-	(void)(cmd_argv);
-	if(cmd_err<0) {
-		// error
-		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
-		strcpy(result, err_str(SH_ERR_UNK));
+	if(cmd_argc != 2) {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_READ].help)+2));
+		strcpy(result, sh_cmds[SH_CMD_READ].help);
 	} else {
-		result = malloc(sizeof(char)*(strlen("Virtual file system loaded.")+2));
-		strcpy(result, "Virtual file system loaded.");
+		size_t bytes = (size_t)strtol(cmd_argv[1],(char **)NULL, 10);
+		result = malloc(sizeof(char)*bytes);
+		int16_t f_fd = (int16_t)strtol(cmd_argv[0],(char **)NULL, 10);
+		size_t bytes_read = 0;
+		bytes_read = cnread((uint8_t*)result, bytes, f_fd);
+		if(bytes_read==0) {
+			cmd_err = bytes_read;
+		}
+		if(cmd_err<=0) {
+			// error
+			free(result);
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+			strcpy(result, err_str(SH_ERR_UNK));
+		}
 	}
 	return result;
 }
@@ -261,16 +276,26 @@ char* sh_read(int cmd_argc, char* cmd_argv[]) {
 char* sh_write(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
-	(void)(cmd_argc);
-	(void)(cmd_argv);
 
-	if(cmd_err<0) {
-		// error
-		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
-		strcpy(result, err_str(SH_ERR_UNK));
+	if(cmd_argc != 2) {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_WRITE].help)+2));
+		strcpy(result, sh_cmds[SH_CMD_WRITE].help);
 	} else {
-		result = malloc(sizeof(char)*(strlen("Virtual file system loaded.")+2));
-		strcpy(result, "Virtual file system loaded.");
+		size_t bytes = strlen(cmd_argv[1]);
+		int16_t f_fd = (int16_t)strtol(cmd_argv[0],(char **)NULL, 10);
+		size_t bytes_write = 0;
+		bytes_write = cnwrite((uint8_t*)cmd_argv[1], bytes, f_fd);
+		if(bytes_write==0) {
+			cmd_err = bytes_write;
+		}
+		if(cmd_err<=0) {
+			// error
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+			strcpy(result, err_str(SH_ERR_UNK));
+		} else {
+			result = malloc(sizeof(char)*(strlen("Write successful.")+2));
+			strcpy(result, "Write successful.");
+		}
 	}
 	return result;
 }
@@ -278,16 +303,22 @@ char* sh_write(int cmd_argc, char* cmd_argv[]) {
 char* sh_seek(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
-	(void)(cmd_argc);
-	(void)(cmd_argv);
 
-	if(cmd_err<0) {
-		// error
-		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
-		strcpy(result, err_str(SH_ERR_UNK));
+	if(cmd_argc != 2) {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_SEEK].help)+2));
+		strcpy(result, sh_cmds[SH_CMD_SEEK].help);
 	} else {
-		result = malloc(sizeof(char)*(strlen("Virtual file system loaded.")+2));
-		strcpy(result, "Virtual file system loaded.");
+		uint32_t offset = (int16_t)strtol(cmd_argv[0],(char **)NULL, 10);
+		int16_t f_fd = (int16_t)strtol(cmd_argv[0],(char **)NULL, 10);
+		cmd_err = cnseek(f_fd, offset);
+		if(cmd_err<=0) {
+			// error
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+			strcpy(result, err_str(SH_ERR_UNK));
+		} else {
+			result = malloc(sizeof(char)*(strlen("Seek successful.")+2));
+			strcpy(result, "Seek successful.");
+		}
 	}
 	return result;
 }
@@ -322,7 +353,7 @@ char* sh_rmdir(int cmd_argc, char* cmd_argv[]) {
 		strcpy(result, sh_cmds[SH_CMD_RMDIR].help);
 	} else {
 		(void)cmd_argv;
-		//cmd_err = cnrmdir(cmd_argv[0]);
+		cmd_err = cnrmdir(cmd_argv[0]);
 		if(cmd_err<0) {
 			// error
 			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
@@ -338,16 +369,21 @@ char* sh_rmdir(int cmd_argc, char* cmd_argv[]) {
 char* sh_rm(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
-	(void)(cmd_argc);
-	(void)(cmd_argv);
 
-	if(cmd_err<0) {
-		// error
-		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
-		strcpy(result, err_str(SH_ERR_UNK));
+	if(cmd_argc != 1) {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_RM].help)+2));
+		strcpy(result, sh_cmds[SH_CMD_RM].help);
 	} else {
-		result = malloc(sizeof(char)*(strlen("Virtual file system loaded.")+2));
-		strcpy(result, "Virtual file system loaded.");
+		(void)cmd_argv;
+		//cmd_err = cnrm(cmd_argv[0]);
+		if(cmd_err<0) {
+			// error
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+			strcpy(result, err_str(SH_ERR_UNK));
+		} else {
+			result = malloc(sizeof(char)*(strlen("File removed.")+2));
+			strcpy(result, "File removed.");
+		}
 	}
 	return result;
 }
@@ -355,16 +391,20 @@ char* sh_rm(int cmd_argc, char* cmd_argv[]) {
 char* sh_cat(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
-	(void)(cmd_argc);
-	(void)(cmd_argv);
 
-	if(cmd_err<0) {
-		// error
-		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
-		strcpy(result, err_str(SH_ERR_UNK));
+	if(cmd_argc != 1) {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_CAT].help)+2));
+		strcpy(result, sh_cmds[SH_CMD_CAT].help);
 	} else {
-		result = malloc(sizeof(char)*(strlen("Virtual file system loaded.")+2));
-		strcpy(result, "Virtual file system loaded.");
+		(void)cmd_argv;
+		result = malloc(sizeof(char)*4096);
+		//cmd_err = cncat(cmd_argv[0],result);
+		if(cmd_err<0) {
+			// error
+			free(result);
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+			strcpy(result, err_str(SH_ERR_UNK));
+		}
 	}
 	return result;
 }
@@ -438,16 +478,20 @@ char* sh_pwd(int cmd_argc, char* cmd_argv[]) {
 char* sh_tree(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
-	(void)(cmd_argc);
 	(void)(cmd_argv);
 
-	if(cmd_err<0) {
-		// error
-		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
-		strcpy(result, err_str(SH_ERR_UNK));
+	if(cmd_argc>0) {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_TREE].help)+2));
+		strcpy(result, sh_cmds[SH_CMD_TREE].help);
 	} else {
-		result = malloc(sizeof(char)*(strlen("Virtual file system loaded.")+2));
-		strcpy(result, "Virtual file system loaded.");
+		result = malloc(sizeof(char)*4096);
+		//cmd_err = cntree(result);
+		if(cmd_err<0) {
+			// error
+			free(result);
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+			strcpy(result, err_str(SH_ERR_UNK));
+		}
 	}
 	return result;
 }
@@ -455,16 +499,21 @@ char* sh_tree(int cmd_argc, char* cmd_argv[]) {
 char* sh_import(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
-	(void)(cmd_argc);
-	(void)(cmd_argv);
 
-	if(cmd_err<0) {
-		// error
-		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
-		strcpy(result, err_str(SH_ERR_UNK));
+	if(cmd_argc != 2) {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_IMPORT].help)+2));
+		strcpy(result, sh_cmds[SH_CMD_IMPORT].help);
 	} else {
-		result = malloc(sizeof(char)*(strlen("Virtual file system loaded.")+2));
-		strcpy(result, "Virtual file system loaded.");
+		(void)cmd_argv;
+		//cmd_err = cnimport(cmd_argv[0], cmd_argv[1]);
+		if(cmd_err<0) {
+			// error
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+			strcpy(result, err_str(SH_ERR_UNK));
+		} else {
+			result = malloc(sizeof(char)*(strlen("File imported.")+2));
+			strcpy(result, "File imported.");
+		}
 	}
 	return result;
 }
@@ -472,16 +521,21 @@ char* sh_import(int cmd_argc, char* cmd_argv[]) {
 char* sh_export(int cmd_argc, char* cmd_argv[]) {
 	char* result = NULL;
 	sh_err cmd_err = SH_ERR_SUCCESS;
-	(void)(cmd_argc);
-	(void)(cmd_argv);
 
-	if(cmd_err<0) {
-		// error
-		result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
-		strcpy(result, err_str(SH_ERR_UNK));
+	if(cmd_argc != 2) {
+		result = malloc(sizeof(char)*(strlen(sh_cmds[SH_CMD_EXPORT].help)+2));
+		strcpy(result, sh_cmds[SH_CMD_EXPORT].help);
 	} else {
-		result = malloc(sizeof(char)*(strlen("Virtual file system loaded.")+2));
-		strcpy(result, "Virtual file system loaded.");
+		(void)cmd_argv;
+		//cmd_err = cnimport(cmd_argv[0], cmd_argv[1]);
+		if(cmd_err<0) {
+			// error
+			result = malloc(sizeof(char)*(strlen(err_str(SH_ERR_UNK))+2));
+			strcpy(result, err_str(SH_ERR_UNK));
+		} else {
+			result = malloc(sizeof(char)*(strlen("File exported.")+2));
+			strcpy(result, "File exported.");
+		}
 	}
 	return result;
 }
