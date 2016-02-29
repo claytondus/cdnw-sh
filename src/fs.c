@@ -688,6 +688,7 @@ int16_t cnopen(dir_ptr* dir, const char* name, uint8_t mode)
 	set_bitmap((block*)fd_bm, fd);
 	fd_tbl[fd].cursor = 0;
 	fd_tbl[fd].state = mode;
+	fd_tbl[fd].inode_id = stat_buf.inode_id;
 	inode_read(stat_buf.inode_id, &fd_tbl[fd].inode);
 
 	if(fd_tbl[fd].inode.blocks > 0)
@@ -736,7 +737,8 @@ size_t cnread(uint8_t* buf, size_t bytes, int16_t fd)
 	{
 		bytes_to_read = bytes;
 	}
-	memcpy(buf, fde->data, bytes_to_read);
+	uint8_t* data_ptr = ((uint8_t*)fde->data) + fde->cursor;
+	memcpy(buf, data_ptr, bytes_to_read);
 	fde->cursor += bytes_to_read;
 	return bytes_to_read;
 }
@@ -747,13 +749,36 @@ int8_t cnseek(int16_t fd, uint32_t offset)
 {
 	fd_entry* fde = &fd_tbl[fd];
 	uint32_t required_size = fde->cursor + offset + 1;
+	if(fde->inode.size < required_size)   //The data cache may have to be expanded
+	{
+		//Compute new sizes
+		uint32_t required_blocks = (required_size / BLOCK_SIZE) + 1;
+
+		//Allocate new data cache
+		check(realloc_cache(fde, required_blocks) == 0, "Unable to realloc cache");
+		fde->inode.size = required_size;
+
+	}
+	fde->cursor = offset;
+	return 0;
+error:
+	return -1;
+}
+
+
+//****** cnwrite *********************
+size_t cnwrite(uint8_t* buf, size_t bytes, int16_t fd)
+{
+	fd_entry* fde = &fd_tbl[fd];
+
+	uint32_t required_size = fde->cursor + bytes + 1;
 	if(fde->inode.size < required_size)   //The data cache and block size may have to be expanded
 	{
 		//Compute new sizes
 		uint32_t required_blocks = (required_size / BLOCK_SIZE) + 1;
 
 		//Allocate new data cache
-		realloc_cache(fde, required_blocks);
+		check(realloc_cache(fde, required_blocks) == 0, "Unable to realloc cache");
 		fde->inode.size = required_size;
 
 		//Allocate fs blocks
@@ -761,10 +786,17 @@ int8_t cnseek(int16_t fd, uint32_t offset)
 		{
 			check(realloc_fs_blocks(&fde->inode, required_blocks) == 0, "Could not allocate fs blocks");
 		}
-
+		fde->inode.modified = time(NULL);
+		inode_write(fde->inode_id, &fde->inode);
 	}
-	fde->cursor = fde->cursor + offset;
-	return 0;
+
+	uint8_t* data_ptr = ((uint8_t*)fde->data)+fde->cursor;
+	memcpy(data_ptr, buf, bytes);
+	fde->cursor += bytes;
+	llwrite(&fde->inode, (block*)fde->data);
+
+	return bytes;
 error:
-	return -1;
+	return 0;
 }
+

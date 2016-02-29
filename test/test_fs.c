@@ -171,3 +171,23 @@ TEST(fs, SeekShouldComplete)
 	TEST_ASSERT_EQUAL_INT16(result, 0);
 	cnumount();
 }
+
+TEST(fs, ReadWriteShouldComplete)
+{
+	cnmkfs();
+	cnmount();
+	cnmkdir("test1");
+	cncd("test1");
+	dir_ptr* dir = cnopendir(".");
+	int16_t fd1 = cnopen(dir, "file1.txt", FD_WRITE);
+	cnseek(fd1, 10000);
+	size_t bytes_written = cnwrite((uint8_t*)"This is only a test.", 21, fd1);
+	system("hd /tmp/fs.bin");
+	TEST_ASSERT_TRUE(21 == bytes_written);
+	cnseek(fd1, 10000);
+	char readbuf[100];
+	size_t bytes_read = cnread((uint8_t*)readbuf, 21, fd1);
+	TEST_ASSERT_EQUAL_STRING("This is only a test.", readbuf);
+	TEST_ASSERT_TRUE(21 == bytes_read);
+	cnumount();
+}

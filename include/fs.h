@@ -31,6 +31,7 @@
 typedef struct {
 	block* data;
 	uint8_t state;
+	iptr inode_id;
 	inode inode;
 	uint32_t cursor;
 } fd_entry;
