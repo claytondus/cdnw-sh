@@ -45,6 +45,8 @@ typedef int8_t sh_err;
 #define SH_ERR_RECV			-12
 #define SH_ERR_STARTSOCK	-13
 #define SH_ERR_BINDSOCK		-14
+#define SH_ERR_RCONNECT		-15
+#define SH_ERR_RCLOSE  		-16
 
 #define SH_CMD_NUM			18
 #define SH_MAX_ARGS			16
@@ -54,6 +56,7 @@ typedef int8_t sh_err;
 #define STR_CMDS			1
 #define STR_EXIT			2
 #define STR_DEFAULT_PORT	3
+#define STR_REMOTE_PROMPT   4
 
 extern const char *err_strings[];
 

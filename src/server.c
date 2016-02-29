@@ -7,23 +7,11 @@
 
 #include <cdnwsh.h>
 #include <sys/select.h>
-#include <netdb.h>
+#include </usr/include/netdb.h>
 #include <errno.h>
+#include <poll.h>
 
 struct svrconf shell_server;
-
-
-void prep_select(void) {
-
-	shell_server.tv_timeout_sock.tv_sec = 2;
-	shell_server.tv_timeout_sock.tv_usec = 0;
-
-	FD_ZERO(&(shell_server.sockets_in));
-	FD_SET(0, &(shell_server.sockets_in));
-
-	shell_server.max_socket = 1;
-
-}
 
 sh_err start_listening(void) {
 
@@ -32,37 +20,34 @@ sh_err start_listening(void) {
 
 	shell_server.status = SVR_STATUS_INIT;
 
-	// init shell_server;
-	shell_server.tv_timeout_sock.tv_sec = SVR_TIMEOUT_CHKSOCK/1000000;
-	shell_server.tv_timeout_sock.tv_usec = SVR_TIMEOUT_CHKSOCK%1000000;
+	shell_server.svrfd = -1;
+	shell_server.clientfd = -1;
+	shell_server.client = CLIENT_STATUS_CLOSE;
+	shell_server.num_fds = 1;
 
-	FD_ZERO( &(shell_server.sockets_in) );
-	FD_ZERO( &(shell_server.sockets_out) );
-	FD_ZERO( &(shell_server.sockets_err) );
-
-	FD_SET(0, &(shell_server.sockets_in));	// listen to standard in
-	//		This block is a work in progress - possible compiler flag conflict?
 	struct addrinfo hints;
 	struct addrinfo *res;
 	int sockfd;
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;  		// IPv4
+	hints.ai_family = AF_INET;  		// IPv4
 	hints.ai_socktype = SOCK_STREAM;	// TCP
-	hints.ai_flags = AI_PASSIVE;     // fill in my IP for me
+	hints.ai_flags = AI_PASSIVE;     	// fill in IP
 
 	getaddrinfo(NULL, SVR_PORT, &hints, &res);
 
-	// make a socket:
-
 	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int));
+
 	if(sockfd>0) {
 		net_err = bind(sockfd, res->ai_addr, res->ai_addrlen);
 		if(net_err<0) {
 			detail_err = errno;
 			net_err = SH_ERR_BINDSOCK;
 			printf("\nErrno: %d\n",detail_err);
+		} else {
+			shell_server.svrfd = sockfd;
+			shell_server.num_fds++;
 		}
 	} else {
 		net_err = SH_ERR_STARTSOCK;
@@ -74,14 +59,18 @@ sh_err start_listening(void) {
 }
 
 
-char* recv_cmd(int socket_num) {
+char* recv_cmd(void) {
 	int size=0;
 	char *cmdbuffer;
 	cmdbuffer = malloc(sizeof(char)*SH_MAX_STR);
 	cmdbuffer[0] = '\0';
 
-	size = recv(socket_num, cmdbuffer, SH_MAX_STR*sizeof(char), 0);
+	size = recv(shell_server.svrfd, cmdbuffer, SH_MAX_STR*sizeof(char), 0);
 	if(size <= 0) {
+		// handle error
+		cmdbuffer[0] = '\0';
+		cmdbuffer[1] = SH_ERR_RECV;
+		cmdbuffer[2] = errno;
 
 	}
 	return cmdbuffer;
@@ -90,11 +79,24 @@ char* recv_cmd(int socket_num) {
 
 sh_err send_results(char* resultstr) {
 	sh_err send_err;
+	int bytes_sent;
 
-	int result_len = strlen(resultstr);
+	int result_len = strlen(resultstr)*sizeof(char);
+	int bytes_remain = result_len;
+	char* cursor = resultstr;
 
-	int bytes_sent = send(shell_server.svraddr->sin_port,resultstr,sizeof(char)*result_len,0);
+	while(bytes_remain > 0) {
+		int send_len = result_len > (SVR_MAX_PAYLOAD-1) ? (SVR_MAX_PAYLOAD-1) : result_len;
 
+		bytes_sent = send(shell_server.svrfd,cursor,sizeof(char)*send_len,0);
+
+		if(bytes_sent > 0) {
+			bytes_remain -= bytes_sent;
+			cursor += bytes_sent / sizeof(char);
+		} else {
+			bytes_remain = bytes_sent;
+		}
+	}
 	if(bytes_sent<1) send_err = bytes_sent;
 
 	return send_err;
@@ -111,48 +113,86 @@ sh_err run(void) {
 	printf("%s",str_table[STR_PROMPT]);
 	fflush(stdout);
 
+	struct pollfd pfd_in[3];
+
 	while(shell_server.status == SVR_STATUS_RUN) {
 
-		prep_select();
+		result = NULL;
+		pfd_in[0].fd = 0;
+		pfd_in[0].events = POLLIN;
+		pfd_in[0].revents = 0;
+		if(shell_server.svrfd != -1) {
+			pfd_in[1].fd = shell_server.svrfd;
+			pfd_in[1].events = POLLIN;
+			pfd_in[1].revents = 0;
+		} else if(shell_server.clientfd != -1) {
+			pfd_in[1].fd = shell_server.clientfd;
+			pfd_in[1].events = POLLIN;
+			pfd_in[1].revents = 0;
+		}
+		if(shell_server.num_fds == 3) {
+			pfd_in[2].fd = shell_server.clientfd;
+			pfd_in[2].events = POLLIN;
+			pfd_in[2].revents = 0;
+		}
 
-		if(select(shell_server.max_socket+1, &(shell_server.sockets_in),
-				NULL, NULL,
-				&(shell_server.tv_timeout_sock))<0) {
-			printf("%s",err_str(SH_ERR_SOCKET));
+		sh_err pol_err = poll(pfd_in, shell_server.num_fds, SVR_TIMEOUT_CHKSOCK);
+		if(pol_err<1) {
+			printf("%s\n",err_str(SH_ERR_SOCKET));
+			perror("Errno");
 			fflush(stdout);
 		}
-
-		int i = 0;
-		for(i = 0; i<=(shell_server.max_socket); i++) {
-
-			if(FD_ISSET(i, &(shell_server.sockets_in))) {
-				if(!i) {
-					// stdin
-					fgets(cmdbuffer,SH_MAX_STR,stdin);
-					result = run_cmd(cmdbuffer);
-					if(result) printf("%s",result);
-					printf("\n%s",str_table[STR_PROMPT]);
-					fflush(stdout);
-				} else {
-					// remote client
-					result = recv_cmd(i);
-					if(result[0]=='\0') {
-						run_err = result[1];
-						strcpy(result,err_str(run_err));
-						run_err = send_results(result);
-					} else {
-						run_err = send_results(run_cmd(result));
-					}
-					if(run_err<0) {
-						printf("\n%s",err_str(run_err));
-						printf("\n%s",str_table[STR_PROMPT]);
-						fflush(stdout);
-					}
+		if(pfd_in[0].revents & POLLIN) {
+			fgets(cmdbuffer,SH_MAX_STR,stdin);
+			//client sending cmd
+			if(shell_server.client == CLIENT_STATUS_OPEN) {
+				run_err = send_cmd(cmdbuffer);
+				if(run_err<0) {
+					printf("ERROR: problem with sending command to remote system\n");
+					perror("Errno");
 				}
-
+				printf("\n%s",str_table[STR_REMOTE_PROMPT]);
+			} else {
+			// stdin
+				result = run_cmd(cmdbuffer);
+				if(result) printf("%s",result);
+				printf("\n%s",str_table[STR_PROMPT]);
 			}
-
+			fflush(stdout);
 		}
+		if(pfd_in[1].revents & POLLIN) {
+			// remote client sending cmd
+			result = recv_cmd();
+			if(result[0]=='\0') {
+				run_err = result[1];
+				int err_errno = result[2];
+				printf("\n%s",err_str(run_err));
+				printf("\n%s\n",strerror(err_errno));
+			} else {
+				run_err = send_results(run_cmd(result));
+			}
+			if(run_err<0) {
+				printf("\n%s",err_str(run_err));
+				perror("Errno");
+				fflush(stdout);
+			}
+		}
+		if(pfd_in[2].revents & POLLIN) {
+			// client receiving cmd results
+			result = recv_results();
+			if(result[0]=='\0') {
+				run_err = result[1];
+				int err_errno = result[2];
+				printf("\n%s",err_str(run_err));
+				printf("\n%s\n",strerror(err_errno));
+			} else {
+				printf("%s",result);
+			}
+			fflush(stdin);
+			printf("\n%s",str_table[STR_REMOTE_PROMPT]);
+			fflush(stdout);
+		}
+		if(result) free(result);
 
 	}
 	if(!run_err) run_err = shell_server.status;
