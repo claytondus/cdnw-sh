@@ -78,6 +78,6 @@ char* cntree(void);
 int8_t cnimport(char*,char*);
 int8_t cnexport(char*,char*);
 
-
+extern dir_ptr* cwd;
 
 #endif /* INCLUDE_FS_H_ */

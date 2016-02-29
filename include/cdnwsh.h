@@ -50,7 +50,7 @@ char* sh_seek(int, char*[]);
 char* sh_close(int, char*[]);
 char* sh_mkdir(int, char*[]);
 char* sh_mkfs(int, char*[]);
-
+char* sh_pwd(int, char*[]);
 char* sh_rmdir(int, char*[]);
 char* sh_cd(int, char*[]);
 char* sh_ls(int, char*[]);

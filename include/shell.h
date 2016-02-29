@@ -20,12 +20,13 @@
 #define SH_CMD_MKDIR		9
 #define SH_CMD_MKFS			10
 #define SH_CMD_OPEN			11
-#define SH_CMD_READ			12
-#define SH_CMD_RM			13
-#define SH_CMD_RMDIR		14
-#define SH_CMD_SEEK			15
-#define SH_CMD_TREE			16
-#define SH_CMD_WRITE		17
+#define SH_CMD_PWD			12
+#define SH_CMD_READ			13
+#define SH_CMD_RM			14
+#define SH_CMD_RMDIR		15
+#define SH_CMD_SEEK			16
+#define SH_CMD_TREE			17
+#define SH_CMD_WRITE		18
 
 
 typedef int8_t sh_err;
