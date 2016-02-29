@@ -29,21 +29,44 @@
 #define FD_WRITE	2
 
 typedef struct {
+	block* data;
 	uint8_t state;
-	int16_t fd;
 	inode inode;
 	uint32_t cursor;
 } fd_entry;
+
+typedef struct {
+	iptr inode;			// iptr to entry's file/folder; 0 = unused/end-of-list
+	uint16_t entry_len;	// length in bytes to the next dir_entry within the block or next block if equals block size
+	uint8_t name_len;	// length in bytes of the entry's file/folder name
+	uint8_t file_type;   // ITYPE_FILE / ITYPE_DIR
+	char name[1];	// first character of the entry name
+} dir_entry;
+
+typedef struct {
+	inode inode_st;
+	iptr inode_id;
+	uint32_t index;
+	block* data;
+} dir_ptr;
+
+typedef struct {
+	iptr inode_id;
+} stat_st;
 
 
 int8_t cnmkfs(void);
 int8_t cnmount(void);
 int8_t cnumount(void);
-int16_t cnopen(char *, uint8_t);
+int8_t cncreat(dir_ptr*, const char*);
+int16_t cnopen(dir_ptr*, const char *, uint8_t);
 char* cnread(int16_t, uint32_t);
 int8_t cnwrite(int16_t, char*);
 int8_t cnseek(int16_t, int32_t);
 int8_t cnclose(int16_t);
+dir_ptr* cnopendir(const char* name);
+void cnclosedir(dir_ptr* dir);
+dir_entry* cnreaddir(dir_ptr* dir);
 int8_t cnmkdir(const char*);
 int8_t cnrmdir(char*);
 int8_t cncd(const char*);

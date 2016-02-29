@@ -126,3 +126,36 @@ TEST(fs, LsShouldComplete)
 	TEST_ASSERT_EQUAL_INT8(result, -1);
 }
 
+TEST(fs, CreatShouldComplete)
+{
+	cnmkfs();
+	cnmount();
+	int8_t result;
+	dir_ptr* dir = cnopendir("");
+	result = cncreat(dir, "file1.txt");
+	result = cncreat(dir, "file2.txt");
+	system("hd /tmp/fs.bin");
+	char lsbuf[1024];
+	memset(lsbuf, 0, 1024);
+	cnls("",lsbuf);
+	debug("ls after creat:\n%s",lsbuf);
+	TEST_ASSERT_EQUAL_INT8(result, 0);
+	cnumount();
+}
+
+TEST(fs, OpenShouldComplete)
+{
+	cnmkfs();
+	cnmount();
+	dir_ptr* dir = cnopendir("");
+	int16_t fd1 = cnopen(dir, "file1.txt", FD_WRITE);
+	int16_t fd2 = cnopen(dir, "file2.txt", FD_WRITE);
+	system("hd /tmp/fs.bin");
+	TEST_ASSERT_EQUAL_INT16(fd1, 0);
+	TEST_ASSERT_EQUAL_INT16(fd2, 1);
+	int16_t result4 = cnclose(fd2);
+	int16_t result3 = cnclose(fd1);
+	TEST_ASSERT_EQUAL_INT16(result3, 0);
+	TEST_ASSERT_EQUAL_INT16(result4, 0);
+	cnumount();
+}

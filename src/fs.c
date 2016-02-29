@@ -15,24 +15,7 @@
 #define VFS_GOOD	1
 #define VFS_ERR		-1
 
-typedef struct {
-	iptr inode;			// iptr to entry's file/folder; 0 = unused/end-of-list
-	uint16_t entry_len;	// length in bytes to the next dir_entry within the block or next block if equals block size
-	uint8_t name_len;	// length in bytes of the entry's file/folder name
-	uint8_t file_type;   // ITYPE_FILE / ITYPE_DIR
-	char name[1];	// first character of the entry name
-} dir_entry;
 
-typedef struct {
-	inode inode_st;
-	iptr inode_id;
-	uint32_t index;
-	block* data;
-} dir_ptr;
-
-typedef struct {
-	iptr inode;
-} stat_st;
 
 typedef struct {
 	uint8_t boot_record[1024]; //0
@@ -63,9 +46,7 @@ typedef struct {
 
 
 //********Private*****************
-dir_ptr* cnopendir(const char* name);
-void cnclosedir(dir_ptr* dir);
-dir_entry* cnreaddir(dir_ptr* dir);
+
 
 
 
@@ -77,8 +58,9 @@ block block_bm_cache;
 block inode_bm_cache;
 
 fd_entry fd_tbl[MAX_FD];
+uint8_t fd_bm[MAX_FD/8];
 
-char cwd_str[4096];
+char cwd_str[1024];
 dir_ptr* cwd;
 
 
@@ -154,6 +136,7 @@ int8_t cnmount(void)
 		fs.state = VFS_BLANK;
 	}
 	memset(fd_tbl, 0, sizeof(fd_entry)*1024);
+	memset(fd_bm, 0, sizeof(uint8_t)*MAX_FD/8);
 	strcpy(cwd_str,"/");
 	cwd = cnopendir("/");
 	return 0;
@@ -305,6 +288,8 @@ int8_t llwrite(inode* inode_ptr, block* buf)
 	return 0;
 }
 
+
+
 //******** readdir ******************
 //Return the dir_entry at the index within dir_ptr, and increment by entry_len.
 dir_entry* cnreaddir(dir_ptr* dir)
@@ -342,12 +327,18 @@ void inflatedir(dir_ptr* dir, iptr inode_id)
 //******** opendir ******************
 dir_ptr* cnopendir(const char* name)
 {
-	char* name_copy = strdup(name);
+	char name_copy[256];
+	strcpy(name_copy, name);
 	char* name_tok;
 	char entry_name[256];
 	iptr loaded_inode = INODE_COUNT + 1;		//Invalid sentinel
 	dir_entry* entry;
 	dir_ptr *dir = calloc(1,sizeof(dir_ptr));	//Directory file in memory (e.g. DIR object from filedef.h)
+
+	if(strlen(name) == 0)
+	{
+		strcpy(name_copy,".");
+	}
 
 	if(memcmp(name,"/",1) == 0)					//Is this path absolute or relative
 	{
@@ -384,6 +375,7 @@ dir_ptr* cnopendir(const char* name)
 				break;
 			}
 		}
+		//Verify the dir was actually loaded
 		check(dir->inode_id == loaded_inode, "can not find directory %s", name_copy);
 
 		name_tok = strtok(NULL, "/");		//Read the next token
@@ -391,14 +383,12 @@ dir_ptr* cnopendir(const char* name)
 	} while(name_tok != NULL);
 
 done:
-	free(name_copy);
 	return dir;
 
 error:
 	free(dir);
 	return NULL;
 }
-
 
 
 //******** closedir *****************
@@ -496,6 +486,7 @@ int8_t cnmkdir(const char* name)
 			//TODO: handle mkdir block overflow
 
 			//Write parent dir and inode
+			dir->inode_st.modified = time(NULL);
 			inode_write(dir->inode_id, &dir->inode_st);
 			blk_write(dir->inode_st.data0[0], dir->data);
 
@@ -570,20 +561,115 @@ error:
 }
 
 //******** stat *********************
-//int8_t stat(char* path, stat_st *buf)
-//{
-//	inode cwd_in;
-//	inode_read(cwd, &cwd_in);
-//}
+int8_t cnstat(dir_ptr* dir, const char* name, stat_st *buf)
+{
+	char entry_name[256];
+	dir_entry* entry;
+
+	cnrewinddir(dir);
+	//Find the name in this dir
+	while((entry = cnreaddir(dir)))
+	{
+		//Copy entry name to a null-term string to compare it
+		memcpy(entry_name, entry->name, entry->name_len);
+		entry_name[entry->name_len] = 0;
+		if(strcmp(entry_name, name) == 0)  //If this file exists
+		{
+			buf->inode_id = entry->inode;
+			return 0;
+		}
+	}
+	return -1;
+}
 //******** end stat *****************
 
 
-//******** cnopen *********************
-//int8_t cnopen(char* filename, uint8_t mode){
+//******** creat ********************
+int8_t cncreat(dir_ptr* dir, const char* name)
+{
+	stat_st stat_buf;
+	dir_entry* entry;
 
-//}
+	check(cnstat(dir,name,&stat_buf) != 0, "File exists");  //If this file exists
+
+	//Create parent directory entry
+	entry = (dir_entry*)(((uint8_t*)dir->data)+dir->index);
+	entry->file_type = ITYPE_FILE;
+	entry->inode = reserve_inode();
+	memcpy(entry->name, name, strlen(name));
+	entry->name_len = strlen(name);
+	entry->entry_len = entry->name_len + 8;
+	entry->entry_len += (4 - entry->entry_len % 4);  //padding out to 32 bits
+	dir->inode_st.size += entry->entry_len;
+	//TODO: handle block overflow
+
+	//Write parent dir and inode
+	dir->inode_st.modified = time(NULL);
+	inode_write(dir->inode_id, &dir->inode_st);
+	blk_write(dir->inode_st.data0[0], dir->data);
+
+	//Write new file inode
+	inode new_file_i;
+	uint32_t now = time(NULL);
+	new_file_i.created = now;
+	new_file_i.modified = now;
+	new_file_i.type = ITYPE_FILE;
+	new_file_i.size = 0;
+	new_file_i.blocks = 0;
+	inode_write(entry->inode, &new_file_i);
+
+	return 0;
+
+error:
+	return -1;
+}
+
+//******** cnopen *********************
+//mode: FD_READ/FD_WRITE
+int16_t cnopen(dir_ptr* dir, const char* name, uint8_t mode)
+{
+	stat_st stat_buf;
+	if(cnstat(dir,name,&stat_buf) != 0)
+	{
+		check(cncreat(dir,name) == 0, "Could not create %s", name);
+		check(cnstat(dir,name,&stat_buf) == 0, "Could not stat %s", name);
+	}
+	//TODO: The fd bitmap is not 1 block long, hope we don't run out of fds
+	int16_t fd = (int16_t)find_free_bit((block*)fd_bm);
+	set_bitmap((block*)fd_bm, fd);
+	fd_tbl[fd].cursor = 0;
+	fd_tbl[fd].state = mode;
+	inode_read(stat_buf.inode_id, &fd_tbl[fd].inode);
+
+	if(fd_tbl[fd].inode.blocks > 0)
+	{
+		fd_tbl[fd].data = calloc(fd_tbl[fd].inode.blocks,sizeof(block));
+		llread(&fd_tbl[fd].inode, fd_tbl[fd].data);
+	}
+	else
+	{
+		fd_tbl[fd].data = NULL;
+	}
+	return fd;
+
+error:
+	return -1;
+}
 //******** end open *****************
 
 
-
-
+////******** cnclose *********************
+int8_t cnclose(int16_t fd)
+{
+	if(fd_tbl[fd].state == FD_FREE)
+	{
+		return -1;
+	}
+	if(fd_tbl[fd].data != NULL)
+	{
+		free(fd_tbl[fd].data);
+	}
+	clear_bitmap((block*)fd_bm, fd);
+	fd_tbl[fd].state = FD_FREE;
+	return 0;
+}

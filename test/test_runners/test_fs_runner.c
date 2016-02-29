@@ -7,5 +7,7 @@ TEST_GROUP_RUNNER(fs)
   //RUN_TEST_CASE(fs, MountUnmountShouldComplete);
   //RUN_TEST_CASE(fs, MkdirShouldComplete);
   //RUN_TEST_CASE(fs, CdShouldComplete);
-  RUN_TEST_CASE(fs, LsShouldComplete);
+  //RUN_TEST_CASE(fs, LsShouldComplete);
+  //RUN_TEST_CASE(fs, CreatShouldComplete);
+	RUN_TEST_CASE(fs, OpenShouldComplete);
 }
