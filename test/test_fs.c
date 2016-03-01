@@ -263,3 +263,26 @@ TEST(fs, ImportExportShouldComplete)
 	result = cnexport("test_fs.c","./test_fs_copy.c");
 	TEST_ASSERT_EQUAL_INT8(0, result);
 }
+
+
+TEST(fs, TreeShouldComplete)
+{
+	//debug("sizeof time_t %u",sizeof(time_t));
+	cnmkfs();
+	cnmount();
+	cnmkdir("test1");
+	cncd("test1");
+	cnmkdir("test1a");
+	cnmkdir("test1b");
+	cncd("..");
+	cnmkdir("test2");
+	cncd("test2");
+	cnmkdir("test2a");
+	cnmkdir("test2b");
+	cncd("..");
+	char buf[4096];
+	memset(buf, 0, 4096);
+	int8_t result = cntree(buf);
+	debug("\n%s",buf);
+	TEST_ASSERT_EQUAL_INT8(0, result);
+}

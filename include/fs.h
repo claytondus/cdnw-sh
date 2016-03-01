@@ -76,7 +76,7 @@ int8_t cnpwd(char*);
 int8_t cnls(const char *, char*);
 int8_t cnstat(dir_ptr*, const char*, stat_st*);
 int8_t cncat(const char*, char*);
-int8_t cntree(const char*, char*);
+int8_t cntree(char*);
 int8_t cnimport(const char*, const char*);
 int8_t cnexport(const char*, const char*);
 

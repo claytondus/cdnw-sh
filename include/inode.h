@@ -23,8 +23,7 @@ typedef struct {
 	uint32_t size;
 	uint32_t blocks;
 
-	uint32_t created;
-	uint32_t modified;
+	time_t modified;
 
 	iptr data0[8];		// direct data block pointers
 	iptr data1;			// single indirect data block pointers

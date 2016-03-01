@@ -34,19 +34,11 @@ typedef struct {
 
 // holds values related to a virtual file system file
 typedef struct {
-
 	uint8_t state;
 	superblock *superblk;
 	uint8_t *free_inodes;
 	uint8_t *free_blocks;
-
 } vfs;
-
-
-
-
-//********Private*****************
-
 
 
 
@@ -275,7 +267,6 @@ void write_root_dir(void)
 	inode root_i;
 	memset(&root_i, 0, sizeof(inode));
 	uint32_t now = time(NULL);
-	root_i.created = now;
 	root_i.modified = now;
 	root_i.type = ITYPE_DIR;
 	root_i.size = 0;
@@ -572,7 +563,6 @@ int8_t cnmkdir(const char* name)
 			inode new_dir_i;
 			memset(&new_dir_i, 0, sizeof(inode));
 			uint32_t now = time(NULL);
-			new_dir_i.created = now;
 			new_dir_i.modified = now;
 			new_dir_i.type = ITYPE_DIR;
 			new_dir_i.size = 0;
@@ -752,7 +742,6 @@ int8_t cncreat(dir_ptr* dir, const char* name)
 	inode new_file_i;
 	memset(&new_file_i, 0, sizeof(inode));
 	uint32_t now = time(NULL);
-	new_file_i.created = now;
 	new_file_i.modified = now;
 	new_file_i.type = ITYPE_FILE;
 	new_file_i.size = 0;
@@ -863,7 +852,6 @@ int8_t cnseek(int16_t fd, uint32_t offset)
 		}
 		fde->inode.modified = time(NULL);
 		inode_write(fde->inode_id, &fde->inode);
-
 	}
 	fde->cursor = offset;
 	return 0;
@@ -1021,4 +1009,60 @@ error:
 	fclose(h_file);
 	free(buf);
 	return -1;
+}
+
+//******* cntree ************
+void treedir(dir_ptr* dir, uint8_t indents, char** buf)
+{
+	dir_entry* entry;
+	inode entry_i;
+	memset(&entry_i, 0, sizeof(inode));
+	int chars;
+
+	//Write indent pattern
+	char indent_str[256];
+	uint8_t indents_ptr = indents;
+	while(indents_ptr > 0)
+	{
+		strcat(indent_str,"    ");
+		indents_ptr--;
+	}
+
+	while((entry = cnreaddir(dir)))
+	{
+		char name_copy[256];
+		memset(name_copy, 0, 256);
+		memcpy(name_copy, entry->name, entry->name_len);
+		if(strcmp(name_copy,".") == 0) continue;
+		if(strcmp(name_copy,"..") == 0) continue;
+
+		inode_read(entry->inode,&entry_i);
+
+		if(indents > 0)
+		{
+			strcpy(*buf,indent_str);
+			*buf += strlen(indent_str);
+		}
+		memcpy(*buf, entry->name, entry->name_len);
+		*buf += entry->name_len;
+		chars = sprintf(*buf, "  %s  %u  %s", (entry_i.type == ITYPE_FILE) ? "F":"D", entry_i.size, ctime((const time_t *)&entry_i.modified));
+		*buf += chars;
+
+		if(entry->file_type == ITYPE_DIR)  //Go to next indent level if a dir
+		{
+			cncd(name_copy);
+			dir_ptr* next_dir = cnopendir(".");
+			treedir(next_dir,indents+1,buf);
+			cnclosedir(next_dir);
+			cncd("..");
+		}
+	}
+}
+
+int8_t cntree(char* buf)
+{
+	dir_ptr* dir = cnopendir(".");
+	uint8_t indents = 0;
+	treedir(dir,indents,&buf);
+	return 0;
 }
