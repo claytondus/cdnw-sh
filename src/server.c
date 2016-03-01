@@ -1,9 +1,3 @@
-/*
- * server.c
- *
- *  Created on: Feb 13, 2016
- *      Author: nwilder
- */
 
 #include <cdnwsh.h>
 #include <sys/select.h>
@@ -72,7 +66,7 @@ sh_err start_listening(void) {
 char* recv_cmd(void) {
 	int size=0;
 	char *cmdbuffer;
-	cmdbuffer = malloc(sizeof(char)*SH_MAX_STR);
+	cmdbuffer = calloc(1,sizeof(char)*SH_MAX_STR);
 	cmdbuffer[0] = '\0';
 
 	size = recv(shell_server.clientfd, cmdbuffer, SH_MAX_STR*sizeof(char), 0);

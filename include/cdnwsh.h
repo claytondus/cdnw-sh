@@ -63,6 +63,7 @@ char* sh_help(int, char*[]);
 char* sh_connect(int, char*[]);
 char* sh_rm(int, char*[]);
 sh_err chk_vfs(char**);
+char* mesg(char*,int,int,int);
 
 
 

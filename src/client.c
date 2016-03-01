@@ -1,10 +1,3 @@
-/*
- * client.c
- *
- *  Created on: Feb 13, 2016
- *      Author: nwilder
- */
-
 #include <cdnwsh.h>
 #include <poll.h>
 
@@ -63,7 +56,7 @@ char* recv_results(void) {
 
 	int size=0;
 	char *results;
-	results = malloc(sizeof(char)*SVR_MAX_PAYLOAD);
+	results = calloc(1,sizeof(char)*SVR_MAX_PAYLOAD);
 	results[0] = '\0';
 
 	size = recv(shell_client.cfd, results, SVR_MAX_PAYLOAD*sizeof(char), 0);

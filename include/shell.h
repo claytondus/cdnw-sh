@@ -61,6 +61,26 @@ typedef int8_t sh_err;
 #define STR_EXIT			2
 #define STR_DEFAULT_PORT	3
 #define STR_REMOTE_PROMPT   4
+#define STR_SUCCESS_MKFS	5
+#define STR_SUCCESS_OPEN	6
+#define STR_SUCCESS_READ	7
+#define STR_SUCCESS_WRITE	8
+#define STR_SUCCESS_SEEK	9
+#define STR_SUCCESS_CLOSE	10
+#define STR_SUCCESS_MKDIR	11
+#define STR_SUCCESS_RMDIR	12
+#define STR_SUCCESS_CD		13
+#define STR_SUCCESS_LS		14
+#define STR_SUCCESS_CAT		15
+#define STR_SUCCESS_TREE	16
+#define STR_SUCCESS_IMPORT	17
+#define STR_SUCCESS_EXPORT	18
+#define STR_SUCCESS_CONNECT	19
+#define STR_SUCCESS_REXIT	20
+
+#define STR_TYPE_STR		1
+#define STR_TYPE_HELP		0
+#define STR_TYPE_ERR		-1
 
 extern const char *err_strings[];
 
