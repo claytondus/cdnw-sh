@@ -112,26 +112,39 @@ char* run_cmd(char *cmdstr) {
 				if(dqopen) dqopen=0;
 				else {
 					dqopen=1;
+					if(i==last_stop+1) {
+						last_stop += 1;
+					}
 					//qseen=1;
 				}
 			} else if (c=='\'') {
 				if(qopen) qopen=0;
 				else {
 					qopen=1;
+					if(i==last_stop+1) {
+						last_stop += 1;
+					}
 					//qseen=1;
 				}
 			}
 		} else if ((c == ' ' && !dqopen && !qopen) || c == '\n' || c == '\r'){
+			int idx = i;
+			if(i>0) {
+				char *chk = (cmdstr+(i-1));
+				if((chk[0]=='\"' || chk[0]=='\'') && !dqopen && !qopen) {
+					idx--;
+				}
+			}
 			if(cmd_tok) {
-				cmd_argv[cmd_argc] = calloc(1,sizeof(char)*(i-last_stop));
-				strncpy(cmd_argv[cmd_argc],cmdstr+last_stop+1,(i-last_stop-1));
-				(cmd_argv[cmd_argc])[i-last_stop-1] = '\0';
+				cmd_argv[cmd_argc] = calloc(1,sizeof(char)*(idx-last_stop));
+				strncpy(cmd_argv[cmd_argc],cmdstr+last_stop+1,(idx-last_stop-1));
+				(cmd_argv[cmd_argc])[idx-last_stop-1] = '\0';
 
 				cmd_argc++;
 			} else {
-				cmd_tok = calloc(1,sizeof(char)*(i+1));
-				strncpy(cmd_tok,cmdstr,i);
-				cmd_tok[i] = '\0';
+				cmd_tok = calloc(1,sizeof(char)*(idx+1));
+				strncpy(cmd_tok,cmdstr,idx);
+				cmd_tok[idx] = '\0';
 			}
 
 			last_stop = i;
