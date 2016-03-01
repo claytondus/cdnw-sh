@@ -42,9 +42,14 @@ TEST_SYMBOLS=-DUNITY_FIXTURES
 
 .PHONY: clean test
 
+default:
+	mkdir -p build
+	$(C_COMPILER) -O2 -std=gnu11 $(DEBUG_INC_DIRS) $(DEBUG_SRC_FILES) -o build/cdnwsh -lm
+
 all: debug test
 
-debug: 
+debug:
+	mkdir -p db 
 	$(C_COMPILER) -g -O0 $(CFLAGS) $(DEBUG_INC_DIRS) $(DEBUG_SRC_FILES) -o db/$(DEBUG_TARGET) -lm
 	
 test:
@@ -52,4 +57,4 @@ test:
 	./test/$(TEST_TARGET)
 
 clean:
-	$(CLEANUP) *.o
+	$(CLEANUP) *.o build/cdnwsh

@@ -767,7 +767,7 @@ int16_t cnopen(dir_ptr* dir, const char* name, uint8_t mode)
 		check(cnstat(dir,name,&stat_buf) == 0, "Could not stat %s", name);
 	}
 	//TODO: The fd bitmap is not 1 block long, hope we don't run out of fds
-	int16_t fd = (int16_t)find_free_bit((block*)fd_bm);
+	int16_t fd = (int16_t)(uint16_t)find_free_bit((block*)fd_bm);
 	set_bitmap((block*)fd_bm, fd);
 	fd_tbl[fd].cursor = 0;
 	fd_tbl[fd].state = mode;
