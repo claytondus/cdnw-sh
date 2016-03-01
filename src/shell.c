@@ -101,6 +101,7 @@ char* run_cmd(char *cmdstr) {
 	int last_stop = 0;
 	int qopen = 0;
 	int dqopen = 0;
+	//int qseen = 0;
 
 	int cmdstr_len = strlen(cmdstr);
 	for(int i = 0; i<cmdstr_len; i++) {
@@ -109,10 +110,16 @@ char* run_cmd(char *cmdstr) {
 			// quote handling
 			if(c=='\"') {
 				if(dqopen) dqopen=0;
-				else dqopen=1;
+				else {
+					dqopen=1;
+					//qseen=1;
+				}
 			} else if (c=='\'') {
 				if(qopen) qopen=0;
-				else qopen=1;
+				else {
+					qopen=1;
+					//qseen=1;
+				}
 			}
 		} else if ((c == ' ' && !dqopen && !qopen) || c == '\n' || c == '\r'){
 			if(cmd_tok) {
@@ -126,6 +133,7 @@ char* run_cmd(char *cmdstr) {
 				strncpy(cmd_tok,cmdstr,i);
 				cmd_tok[i] = '\0';
 			}
+
 			last_stop = i;
 		}
 		if(c=='\n'||c=='\r') {
@@ -327,7 +335,7 @@ char* sh_seek(int cmd_argc, char* cmd_argv[]) {
 		result = calloc(1,sizeof(char)*(strlen(sh_cmds[SH_CMD_SEEK].help)+2));
 		strcpy(result, sh_cmds[SH_CMD_SEEK].help);
 	} else {
-		uint32_t offset = (int16_t)strtol(cmd_argv[0],(char **)NULL, 10);
+		uint32_t offset = (int16_t)strtol(cmd_argv[1],(char **)NULL, 10);
 		int16_t f_fd = (int16_t)strtol(cmd_argv[0],(char **)NULL, 10);
 		cmd_err = cnseek(f_fd, offset);
 		if(cmd_err<0) {
