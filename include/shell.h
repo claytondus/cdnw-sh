@@ -52,7 +52,7 @@ typedef int8_t sh_err;
 #define SH_ERR_CRECV		-18
 
 
-#define SH_CMD_NUM			18
+#define SH_CMD_NUM			19
 #define SH_MAX_ARGS			16
 #define SH_MAX_STR			256
 

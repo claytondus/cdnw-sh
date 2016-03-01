@@ -280,9 +280,9 @@ char* sh_read(int cmd_argc, char* cmd_argv[]) {
 		size_t bytes_read = 0;
 		bytes_read = cnread((uint8_t*)result, bytes, f_fd);
 		if(bytes_read==0) {
-			cmd_err = bytes_read;
+			cmd_err = SH_ERR_UNK;
 		}
-		if(cmd_err<=0) {
+		if(cmd_err<0) {
 			// error
 			free(result);
 			result = mesg(result,SH_ERR_UNK,STR_TYPE_ERR,0);
@@ -305,9 +305,9 @@ char* sh_write(int cmd_argc, char* cmd_argv[]) {
 		size_t bytes_write = 0;
 		bytes_write = cnwrite((uint8_t*)cmd_argv[1], bytes, f_fd);
 		if(bytes_write==0) {
-			cmd_err = bytes_write;
+			cmd_err = SH_ERR_UNK;
 		}
-		if(cmd_err<=0) {
+		if(cmd_err<0) {
 			// error
 			result = mesg(result,SH_ERR_UNK,STR_TYPE_ERR,0);
 		} else {
@@ -330,7 +330,7 @@ char* sh_seek(int cmd_argc, char* cmd_argv[]) {
 		uint32_t offset = (int16_t)strtol(cmd_argv[0],(char **)NULL, 10);
 		int16_t f_fd = (int16_t)strtol(cmd_argv[0],(char **)NULL, 10);
 		cmd_err = cnseek(f_fd, offset);
-		if(cmd_err<=0) {
+		if(cmd_err<0) {
 			// error
 			result = mesg(result,SH_ERR_UNK,STR_TYPE_ERR,0);
 		} else {
