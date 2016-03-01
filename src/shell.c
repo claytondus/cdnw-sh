@@ -460,7 +460,7 @@ char* sh_ls(int cmd_argc, char* cmd_argv[]) {
 		if(cmd_argc==1) {
 			cmd_err = cnls(cmd_argv[0],result);
 		} else {
-			cmd_err = cnls("\0",result);
+			cmd_err = cnls("",result);
 		}
 		if(cmd_err<0) {
 			// error
