@@ -141,20 +141,38 @@ error:
 //Allocates at least "blocks_needed" blocks for this file
 int8_t realloc_fs_blocks(inode* inode, uint32_t blocks_needed)
 {
+	uint32_t* s_ind = calloc(1, sizeof(block));
 	if(blocks_needed > inode->blocks)
 	{
-		if(blocks_needed <= 8)
+		if(inode->blocks <= 8)
 		{
-			for(; inode->blocks < blocks_needed; inode->blocks++)
+			for(; inode->blocks < MIN(8,blocks_needed); inode->blocks++)
 			{
 				inode->data0[inode->blocks] = reserve_block();
 			}
 		}
-		else
+
+		if(inode->blocks < blocks_needed) //still not enough after allocating direct
 		{
-			//TODO: Handle allocation of indirect blocks
+			//Determine if a single indirect block has been allocated
+			if(inode->data1 == 0)
+			{
+				inode->data1 = reserve_block();
+			}
+			else
+			{
+				blk_read(inode->data1,(block*)s_ind);
+			}
+			//Allocate the blocks and save in the indirect block
+			for(;inode->blocks < blocks_needed; inode->blocks++)
+			{
+				s_ind[inode->blocks-8] = reserve_block();
+			}
+			blk_write(inode->data1,(block*)s_ind);
 		}
+
 	}
+	free(s_ind);
 	return 0;
 }
 
@@ -255,6 +273,7 @@ void write_root_dir(void)
 {
 	//Prepare inode
 	inode root_i;
+	memset(&root_i, 0, sizeof(inode));
 	uint32_t now = time(NULL);
 	root_i.created = now;
 	root_i.modified = now;
@@ -303,18 +322,23 @@ int8_t cnmkfs(void)
 //Reads a complete file from its inode data
 int8_t llread(inode* inode_ptr, block* buf)
 {
-	if(inode_ptr->blocks <= 8)
+	uint32_t* s_ind = calloc(1, sizeof(block));
+	for(uint8_t i = 0; i < MIN(inode_ptr->blocks,8); i++)
 	{
-		for(uint8_t i = 0; i < inode_ptr->blocks; i++)
+		blk_read(inode_ptr->data0[i], buf);
+		buf++;
+	}
+
+	if(inode_ptr->blocks > 8)
+	{
+		blk_read(inode_ptr->data1, (block*)s_ind);
+		for(uint32_t j = 0; j < inode_ptr->blocks - 8; j++)
 		{
-			blk_read(inode_ptr->data0[i], buf);
+			blk_read(s_ind[j], buf);
 			buf++;
 		}
 	}
-	else
-	{
-		//TODO: read indirect blocks
-	}
+	free(s_ind);
 	return 0;
 }
 
@@ -322,18 +346,23 @@ int8_t llread(inode* inode_ptr, block* buf)
 //Writes a file completely and updates inode data
 int8_t llwrite(inode* inode_ptr, block* buf)
 {
-	if(inode_ptr->blocks <= 8)
+	uint32_t* s_ind = calloc(1, sizeof(block));
+	for(uint8_t i = 0; i < MIN(inode_ptr->blocks,8); i++)
 	{
-		for(uint8_t i = 0; i < inode_ptr->blocks; i++)
+		blk_write(inode_ptr->data0[i], buf);
+		buf++;
+	}
+
+	if(inode_ptr->blocks > 8)
+	{
+		blk_read(inode_ptr->data1, (block*)s_ind);
+		for(uint32_t j = 0; j < inode_ptr->blocks - 8; j++)
 		{
-			blk_write(inode_ptr->data0[i], buf);
+			blk_write(s_ind[j], buf);
 			buf++;
 		}
 	}
-	else
-	{
-		//TODO: read indirect blocks
-	}
+	free(s_ind);
 	return 0;
 }
 
@@ -541,6 +570,7 @@ int8_t cnmkdir(const char* name)
 
 			//Write new directory inode
 			inode new_dir_i;
+			memset(&new_dir_i, 0, sizeof(inode));
 			uint32_t now = time(NULL);
 			new_dir_i.created = now;
 			new_dir_i.modified = now;
@@ -591,6 +621,7 @@ int8_t cnrmdir(const char* name)
 	char entry_name[256];
 	dir_entry* entry;
 	inode dir_inode;
+	memset(&dir_inode, 0, sizeof(inode));
 
 	strcpy(parent_name, name);
 	strcat(parent_name, "/..");
@@ -710,7 +741,7 @@ int8_t cncreat(dir_ptr* dir, const char* name)
 	entry->entry_len = entry->name_len + 8;
 	entry->entry_len += (4 - entry->entry_len % 4);  //padding out to 32 bits
 	dir->inode_st.size += entry->entry_len;
-	//TODO: handle block overflow
+	//TODO: handle creat dir block overflow
 
 	//Write parent dir and inode
 	dir->inode_st.modified = time(NULL);
@@ -719,6 +750,7 @@ int8_t cncreat(dir_ptr* dir, const char* name)
 
 	//Write new file inode
 	inode new_file_i;
+	memset(&new_file_i, 0, sizeof(inode));
 	uint32_t now = time(NULL);
 	new_file_i.created = now;
 	new_file_i.modified = now;
@@ -740,7 +772,9 @@ int16_t cnopen(dir_ptr* dir, const char* name, uint8_t mode)
 	stat_st stat_buf;
 	if(cnstat(dir,name,&stat_buf) != 0)
 	{
-		check(cncreat(dir,name) == 0, "Could not create %s", name);
+		if(mode == FD_WRITE) {
+			check(cncreat(dir,name) == 0, "Could not create %s", name);
+		}
 		check(cnstat(dir,name,&stat_buf) == 0, "Could not stat %s", name);
 	}
 	//TODO: The fd bitmap is not 1 block long, hope we don't run out of fds
@@ -787,11 +821,13 @@ int8_t cnclose(int16_t fd)
 //******** cnread ********************
 size_t cnread(uint8_t* buf, size_t bytes, int16_t fd)
 {
-	size_t bytes_to_read;
+	size_t bytes_to_read = 0;
 	fd_entry* fde = &fd_tbl[fd];
-	if(bytes > (fde->inode.size - fde->cursor))
+	check(fde->state == FD_READ, "File descriptor not in read mode");
+	//TODO: Don't read unallocated space
+	if(bytes > (fde->inode.size - (fde->cursor + 1)))
 	{
-		bytes_to_read = fde->inode.size - fde->cursor;
+		bytes_to_read = fde->inode.size - (fde->cursor+1);
 	}
 	else
 	{
@@ -801,6 +837,8 @@ size_t cnread(uint8_t* buf, size_t bytes, int16_t fd)
 	memcpy(buf, data_ptr, bytes_to_read);
 	fde->cursor += bytes_to_read;
 	return bytes_to_read;
+error:
+	return 0;
 }
 
 
@@ -809,7 +847,7 @@ int8_t cnseek(int16_t fd, uint32_t offset)
 {
 	fd_entry* fde = &fd_tbl[fd];
 	uint32_t required_size = fde->cursor + offset;
-	if(fde->inode.size < required_size)   //The data cache may have to be expanded
+	if(fde->inode.size < required_size)   //The data cache and block size may have to be expanded
 	{
 		//Compute new sizes
 		uint32_t required_blocks = (required_size / BLOCK_SIZE) + 1;
@@ -817,6 +855,14 @@ int8_t cnseek(int16_t fd, uint32_t offset)
 		//Allocate new data cache
 		check(realloc_cache(fde, required_blocks) == 0, "Unable to realloc cache");
 		fde->inode.size = required_size;
+
+		//Allocate fs blocks
+		if(fde->inode.blocks < required_blocks)
+		{
+			check(realloc_fs_blocks(&fde->inode, required_blocks) == 0, "Could not allocate fs blocks");
+		}
+		fde->inode.modified = time(NULL);
+		inode_write(fde->inode_id, &fde->inode);
 
 	}
 	fde->cursor = offset;
@@ -830,6 +876,7 @@ error:
 size_t cnwrite(uint8_t* buf, size_t bytes, int16_t fd)
 {
 	fd_entry* fde = &fd_tbl[fd];
+	check(fde->state == FD_WRITE, "File descriptor not in write mode");
 
 	uint32_t required_size = fde->cursor + bytes;
 	if(fde->inode.size < required_size)   //The data cache and block size may have to be expanded

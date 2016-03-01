@@ -9,7 +9,6 @@
 
 uint32_t find_free_bit(block* blk)
 {
-	//TODO: Implement find free bit in bitmap
 	uint8_t byte_found;
 	uint16_t ptr;
 	for(ptr = 0; ptr < BLOCK_SIZE; ptr++)
